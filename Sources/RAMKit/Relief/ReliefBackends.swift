@@ -143,7 +143,7 @@ public enum ReliefAvailability: Sendable, Equatable {
             let status = try await helper.status(timeout: 3)
             return .helper(version: status.version)
         } catch {
-            return .unavailable(reason: "\(error)")
+            return .unavailable(reason: "The helper is installed but did not answer this copy of ram (\(error)). It only answers binaries signed by the same team: use the signed build (scripts/install.sh) or reinstall with  sudo ram helper install")
         }
     }
 

@@ -79,10 +79,16 @@ public struct Diagnosis: Codable, Sendable {
             fixes.append(Fix(title: "Restart Firefox's GPU process (Firefox relaunches it; WebGL/canvas reset)",
                              estimateBytes: gpu.footprint, how: "ram firefox gpu-restart"))
         }
+        let userScope = ClaudeMCPConfig.userScopeServers()
         for d in duplicates.prefix(2) {
+            let how: String
+            if let name = ClaudeMCPConfig.userScopeName(for: d, servers: userScope) {
+                how = "\"\(name)\" is set up for every session in ~/.claude.json (user scope): scope it to the projects that use it (claude mcp / /mcp), or close idle sessions"
+            } else {
+                how = "configure it only for the projects that use it, or close idle sessions"
+            }
             fixes.append(Fix(title: "\(d.count) copies of the same server (\(d.command)) across \(d.sessions) agent sessions: each session starts its own",
-                             estimateBytes: d.bytes - d.bytes / UInt64(max(1, d.count)),
-                             how: "configure it only for the projects that use it (not for every session), or close idle sessions"))
+                             estimateBytes: d.bytes - d.bytes / UInt64(max(1, d.count)), how: how))
         }
         if !archived.isEmpty {
             let bytes = archived.reduce(UInt64(0)) { $0 + $1.footprint }
@@ -104,8 +110,13 @@ public struct Diagnosis: Codable, Sendable {
                              estimateBytes: nil, how: "ram firefox unloader on (applies at the next Firefox start)"))
         }
         if !reliefAvailable {
-            fixes.append(Fix(title: "Install the helper so downloads and autopilot work", estimateBytes: nil,
-                             how: "sudo ram helper install"))
+            if HelperInstaller.isInstalled {
+                fixes.append(Fix(title: "The helper is installed but refused this copy of ram (it only answers binaries signed by the same team)",
+                                 estimateBytes: nil, how: "use the signed build (scripts/install.sh), or reinstall: sudo ram helper install"))
+            } else {
+                fixes.append(Fix(title: "Install the helper so downloads and autopilot work", estimateBytes: nil,
+                                 how: "sudo ram helper install"))
+            }
         }
         fixes.sort { ($0.estimateBytes ?? 0) > ($1.estimateBytes ?? 0) }
 

@@ -242,3 +242,19 @@ struct DuplicateServerTests {
         #expect(AgentClassifier.serverKey(rec(3, name: "zsh", path: "/bin/zsh", mb: 1), argv: ["zsh"]) == nil)
     }
 }
+
+@Suite("Claude MCP config")
+struct ClaudeMCPConfigTests {
+    @Test func findsTheUserScopeServerBehindADuplicate() throws {
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent("ram-claude-\(UUID().uuidString).json")
+        defer { try? FileManager.default.removeItem(at: file) }
+        try #"{"mcpServers":{"rea":{"command":"/opt/homebrew/bin/rea","args":["mcp"],"env":{"TOKEN":"secret"}}},"projects":{}}"#
+            .write(to: file, atomically: true, encoding: .utf8)
+        let servers = ClaudeMCPConfig.userScopeServers(path: file)
+        #expect(servers["rea"] == ["rea", "mcp"])
+        let dup = DuplicateServer(command: "rea mcp", count: 16, sessions: 11, bytes: 3 << 30, pids: [])
+        #expect(ClaudeMCPConfig.userScopeName(for: dup, servers: servers) == "rea")
+        let other = DuplicateServer(command: "server-github", count: 3, sessions: 3, bytes: 1 << 30, pids: [])
+        #expect(ClaudeMCPConfig.userScopeName(for: other, servers: servers) == nil)
+    }
+}

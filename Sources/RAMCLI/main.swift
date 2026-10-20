@@ -5,6 +5,7 @@ import RAMKit
 
 let version = "1.0.0"
 setvbuf(stdout, nil, _IOLBF, 0)   // line-buffered even when piped (watch, bench logs)
+signal(SIGPIPE, SIG_IGN)          // `ram download | head` must never kill a hold: writes just fail with EPIPE
 let args = Array(CommandLine.arguments.dropFirst())
 let command = args.first ?? "status"
 let flags = Set(args.filter { $0.hasPrefix("--") })
@@ -41,10 +42,11 @@ let usage = """
       ram apps [--all]          every app's memory, grouped like Force Quit
       ram agents [--quit-archived [--yes]]
                                 AI agent sessions (titles, last activity, archived-but-running) and leftovers
-      ram download [--hold S] [--dry-run] [--record FILE]
+      ram download [--hold S] [--levers firefox-gpu,leftovers,archived,resume|all] [--dry-run] [--record FILE]
                                 ask the kernel for its memory-pressure response, measure what came back
       ram quit <pid> [--force]  quit a leftover (SIGTERM; --force sends SIGKILL)
-      ram doctor [--days N]     when you hit the wall, what was paused, what to do about it
+      ram doctor [--days N] [--fast]
+                                when you hit the wall, what was paused, what to do (--fast skips the logs)
       ram firefox [unloader on|off] [gpu-restart]
                                 Firefox's two real levers (tab unloader pref, GPU process restart)
       ram watch [--autopilot]   live wall readout; with --autopilot, download when the wall is near
@@ -125,8 +127,8 @@ case "agents":
     let sessions = AgentClassifier.sessions(snap, cpuHistory: cpu)
     let leftovers = AgentClassifier.leftovers(snap, cpuHistory: cpu)
     if flags.contains("--quit-archived") {
-        let archived = sessions.filter(\.archived)
-        guard !archived.isEmpty else { print("No archived Claude Code sessions are running."); exit(0) }
+        let archived = sessions.filter { AgentClassifier.safeToQuitArchived($0) }
+        guard !archived.isEmpty else { print("No archived Claude Code sessions are running quietly (busy or recently used ones are left alone)."); exit(0) }
         for s in archived { print("  \(s.label) · \(Format.bytes(s.footprint)) · pid \(s.id)") }
         guard flags.contains("--yes") else {
             print("These sessions are archived in the Claude app but still running. Quit them with  ram agents --quit-archived --yes")
@@ -163,10 +165,19 @@ case "download":
         }
         backend = b
     }
-    let hold = Int(value("--hold") ?? "10").map { $0 * 1000 } ?? 10_000
+    let hold: Int
+    switch InputLimits.holdSeconds(value("--hold")) {
+    case .success(let s): hold = s * 1000
+    case .failure(let why): fail(why.message, code: 2)
+    }
+    let levers: [LeverKind]
+    switch LeverKind.parse(value("--levers")) {
+    case .success(let l): levers = dryRun ? [] : l
+    case .failure(let why): fail(why.message, code: 2)
+    }
     let engine = ReliefEngine(backend: backend, holdMs: hold, settleMs: 5_000, wall: { s in
         var m = WallModel(); m.add(s); return m.status()?.percent ?? 0
-    })
+    }, levers: levers)
     let json = flags.contains("--json")
     let recordPath = value("--record")
     let recorder = FrameRecorder()
@@ -189,7 +200,7 @@ case "download":
         }
         if isTTY && !json { print("") }
         let url = dryRun ? nil : try? receipt.save()
-        if let recordPath { try? recorder.write(to: URL(fileURLWithPath: recordPath), receipt: receipt) }
+        if let recordPath { try? RealUser.asUser { try recorder.write(to: URL(fileURLWithPath: recordPath), receipt: receipt) } }
         if json { printJSON(receipt) }
         else {
             print(Render.receipt(receipt, style: style), terminator: "")
@@ -263,15 +274,16 @@ case "receipt":
     if flags.contains("--json") { printJSON(receipt) } else { print(receipt.markdown()) }
 
 case "doctor":
-    let days = Int(value("--days") ?? "7") ?? 7
-    if isTTY { FileHandle.standardError.write(Data(style.dim("Reading the last \(days) days of system logs (this takes a while)…\n").utf8)) }
-    let events = (try? WallEventLog.read(days: days)) ?? []
+    let days = max(1, min(90, Int(value("--days") ?? "7") ?? 7))
+    let fast = flags.contains("--fast")
+    if isTTY && !fast { FileHandle.standardError.write(Data(style.dim("Reading the last \(days) days of system logs (this takes a while; --fast skips it)…\n").utf8)) }
+    let events = fast ? [] : ((try? WallEventLog.read(days: days)) ?? [])
     guard let system = try? SystemSampler.read() else { fail("Could not read memory statistics", code: 1) }
     var wallModel = WallModel()
     wallModel.add(system)
     var cpu = CPUHistory()
     cpu.add(ProcessSampler.snapshot())
-    usleep(1_000_000)
+    usleep(fast ? 250_000 : 1_000_000)
     let snap = ProcessSampler.snapshot()
     cpu.add(snap)
     let diagnosis = Diagnosis.make(system: system, wall: wallModel.status(), snapshot: snap,
@@ -390,9 +402,11 @@ case "bench":
         if case .unavailable(let reason) = availability { fail(reason, code: 3) }
         fail(ReliefError.notPermitted.description, code: 3)
     }
-    let trials = Int(value("--trials") ?? "") ?? (scenario == "perf" ? 5 : 3)
-    let hold = (Int(value("--hold") ?? "") ?? 10) * 1000
-    let cooldown = Double(value("--cooldown") ?? "") ?? 60
+    func checked(_ r: Result<Int, InputError>) -> Int { switch r { case .success(let v): return v; case .failure(let why): fail(why.message, code: 2) } }
+    let trials = checked(InputLimits.int(value("--trials"), default: scenario == "perf" ? 5 : 3, range: 1...50, name: "--trials"))
+    let hold = checked(InputLimits.holdSeconds(value("--hold"))) * 1000
+    let cooldown = Double(checked(InputLimits.int(value("--cooldown"), default: 60, range: 20...600, name: "--cooldown")))
+    let headroom = (try? SystemSampler.read().headroomBytes) ?? 0
     let exeDir = URL(fileURLWithPath: CommandLine.arguments[0]).resolvingSymlinksInPath().deletingLastPathComponent()
     let fixture = [exeDir.appendingPathComponent("ram-fixture").path].first { FileManager.default.isExecutableFile(atPath: $0) }
     let runner = BenchRunner(backend: backend, holdMs: hold, settleMs: 5_000, cooldownS: cooldown, fixtureBinary: fixture)
@@ -401,12 +415,17 @@ case "bench":
         let result: BenchResult
         switch scenario {
         case "real": result = try await runner.real(trials: trials, log: log)
-        case "synthetic": result = try await runner.synthetic(trials: trials, hogs: Int(value("--hogs") ?? "") ?? 2,
-                                                              mb: Int(value("--mb") ?? "") ?? 256, log: log)
-        case "perf": result = try await runner.perf(trials: trials, sizeMB: Int(value("--mb") ?? "") ?? 1024, log: log)
+        case "synthetic":
+            let hogs = checked(InputLimits.int(value("--hogs"), default: 2, range: 1...8, name: "--hogs"))
+            let mb = InputLimits.cappedMB(checked(InputLimits.int(value("--mb"), default: 256, range: 16...2048, name: "--mb")),
+                                          headroom: headroom / UInt64(2 * hogs))
+            result = try await runner.synthetic(trials: trials, hogs: hogs, mb: mb, log: log)
+        case "perf":
+            let mb = InputLimits.cappedMB(checked(InputLimits.int(value("--mb"), default: 1024, range: 64...4096, name: "--mb")), headroom: headroom)
+            result = try await runner.perf(trials: trials, sizeMB: mb, log: log)
         default: fail("usage: ram bench real|synthetic|perf|report", code: 2)
         }
-        let url = try result.save(to: resultsDir)
+        let url = try RealUser.asUser { try result.save(to: resultsDir) }
         print("")
         for s in result.summaries {
             let w = s.welch.map { String(format: "  (Welch t = %.2f, p = %@)", $0.t, $0.p < 0.001 ? "< 0.001" : String(format: "%.3f", $0.p)) } ?? ""

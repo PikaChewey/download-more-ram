@@ -12,6 +12,33 @@ public struct NullBackend: ReliefBackend {
     public func restore() async throws {}
 }
 
+/// A rejected command-line value, with the message to show.
+public struct InputError: Error, Equatable, Sendable, CustomStringConvertible {
+    public let message: String
+    public init(_ message: String) { self.message = message }
+    public var description: String { message }
+}
+
+/// Command-line inputs for downloads and benchmarks, validated before anything touches the kernel.
+public enum InputLimits {
+    public static func holdSeconds(_ text: String?) -> Result<Int, InputError> {
+        guard let text else { return .success(10) }
+        guard let v = Int(text), (1...30).contains(v) else { return .failure(InputError("--hold must be a whole number of seconds from 1 to 30")) }
+        return .success(v)
+    }
+    public static func int(_ text: String?, default d: Int, range: ClosedRange<Int>, name: String) -> Result<Int, InputError> {
+        guard let text else { return .success(d) }
+        guard let v = Int(text), range.contains(v) else {
+            return .failure(InputError("\(name) must be a whole number from \(range.lowerBound) to \(range.upperBound)"))
+        }
+        return .success(v)
+    }
+    /// Fixture/workload memory is capped at a quarter of the memory macOS can still hand out.
+    public static func cappedMB(_ requested: Int, headroom: UInt64) -> Int {
+        max(16, min(requested, Int(headroom / 4 / 1_048_576)))
+    }
+}
+
 /// Refuses to start (or continue) a benchmark when the Mac is already short of memory.
 public enum BenchGate {
     public static let startLevel = 15

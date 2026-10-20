@@ -12,8 +12,7 @@ public enum FirefoxLevers {
     public static let gpuMinUptimeS: Double = 30
 
     public static var supportDir: URL {
-        FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Library/Application Support/Firefox", isDirectory: true)
+        RealUser.home.appendingPathComponent("Library/Application Support/Firefox", isDirectory: true)
     }
 
     /// The profile Firefox opens by default: the `[Install…]` section's Default=, else the

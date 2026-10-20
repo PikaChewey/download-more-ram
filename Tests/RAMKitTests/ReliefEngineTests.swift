@@ -17,20 +17,26 @@ func fakeSystem(swapUsedGB: Double = 9.9, pressure: PressureLevel = .normal) -> 
 /// Scripted readings on a virtual clock: sleeping advances time instantly.
 final class FakeSampling: Sampling, @unchecked Sendable {
     private let lock = NSLock()
-    private var clock: Double = 0
+    private var clock: Double
     private var calls = 0
     let script: (Int, Double) -> [ProcessRecord]
-    init(script: @escaping (Int, Double) -> [ProcessRecord]) { self.script = script }
+    /// `start` is the virtual clock's origin (seconds since 1970); scripts receive time relative to it.
+    let start: Double
+    init(script: @escaping (Int, Double) -> [ProcessRecord], start: Double = 0) {
+        self.script = script
+        self.start = start
+        self.clock = start
+    }
 
     func processSnapshot() -> ProcessSnapshot {
         lock.lock(); defer { lock.unlock() }
-        let s = ProcessSnapshot(timestamp: Date(timeIntervalSince1970: clock), records: script(calls, clock))
+        let s = ProcessSnapshot(timestamp: Date(timeIntervalSince1970: clock), records: script(calls, clock - start))
         calls += 1
         return s
     }
     func systemSample() throws -> SystemSample {
         lock.lock(); defer { lock.unlock() }
-        return fakeSystem(swapUsedGB: clock < 2.5 ? 9.9 : 9.1)
+        return fakeSystem(swapUsedGB: clock - start < 2.5 ? 9.9 : 9.1)
     }
     func sleep(ms: Int) async throws { lock.withLock { clock += Double(ms) / 1000 } }
     func now() -> Date { lock.lock(); defer { lock.unlock() }; return Date(timeIntervalSince1970: clock) }

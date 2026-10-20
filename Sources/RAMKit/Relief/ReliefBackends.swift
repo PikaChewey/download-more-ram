@@ -3,46 +3,60 @@ import Darwin
 import Foundation
 
 /// Writes the trigger directly. Only works as root (`sudo ram download`, or inside the helper).
-/// Restores normal on success, error, task cancellation and SIGINT/SIGTERM/SIGHUP; a marker file
-/// lets the helper or `ram restore` recover after SIGKILL.
+/// Restores normal on success, error, task cancellation and every catchable terminating signal; a
+/// per-process marker lets the helper or `ram restore` recover after SIGKILL.
 public struct DirectSysctlBackend: ReliefBackend {
     public let name: String
-    let marker: String?
+    let markerPrefix: String?
 
-    public init(name: String = "root", marker: String? = HelperConstants.holdingMarker) {
+    public init(name: String = "root", markerPrefix: String? = HoldMarkers.defaultPrefix) {
         self.name = name
-        self.marker = marker
+        self.markerPrefix = markerPrefix
     }
 
     public func relieve(level: PressureLevel, holdMs: Int) async throws {
         guard geteuid() == 0 else { throw ReliefError.notPermitted }
-        guard level != .normal else { throw ReliefError.refused("normal is not a relief level") }
-        if let marker { FileManager.default.createFile(atPath: marker, contents: Data("\(getpid())\n".utf8)) }
-        dm_restore_guard_arm(Trigger.sysctlName, Trigger.restoreValue)
+        // Validate before anything touches the kernel: a bad hold must never trap mid-hold.
+        if let invalid = Self.validate(level: level, holdMs: holdMs) { throw invalid }
+        let marker = markerPrefix.flatMap { HoldMarkers.write(prefix: $0) }
+        let armed = dm_restore_guard_arm(Trigger.sysctlName, Trigger.restoreValue, marker)
+        guard armed == 0 else {
+            if let marker { HoldMarkers.remove(marker) }
+            throw armed == EBUSY ? ReliefError.refused("a download is already running in this process") : ReliefError.kernel(armed)
+        }
         let err = Trigger.write(Trigger.signalValue(level))
         guard err == 0 else {
             // xnu sets manual-testing mode *before* validating the value, so any write that reached
-            // the handler (anything but EPERM from the root check) must still be followed by a reset.
-            let restored = err == EPERM ? 0 : Trigger.write(Trigger.restoreValue)
+            // the handler must still be followed by a reset. EPERM (root check) and ENOENT (no such
+            // oid) never reach it: nothing was set.
+            let nothingSet = err == EPERM || err == ENOENT
+            let restored = nothingSet ? 0 : Trigger.write(Trigger.restoreValue)
             dm_restore_guard_disarm()
-            if restored == 0, let marker { try? FileManager.default.removeItem(atPath: marker) }
+            if restored == 0, let marker { HoldMarkers.remove(marker) }
             if restored != 0 { throw ReliefError.restoreFailed(restored) }
             throw err == EPERM ? ReliefError.notPermitted : ReliefError.kernel(err)
         }
         var waitError: Error?
-        do { try await Task.sleep(nanoseconds: UInt64(holdMs) * 1_000_000) } catch { waitError = error }
+        do { try await Task.sleep(nanoseconds: UInt64(clamping: holdMs) * 1_000_000) } catch { waitError = error }
         let restored = Trigger.write(Trigger.restoreValue)
         dm_restore_guard_disarm()
-        if restored == 0, let marker { try? FileManager.default.removeItem(atPath: marker) }
+        if restored == 0, let marker { HoldMarkers.remove(marker) }
         if restored != 0 { throw ReliefError.restoreFailed(restored) }
         if let waitError { throw waitError }
     }
 
+    static func validate(level: PressureLevel, holdMs: Int) -> ReliefError? {
+        if level == .normal { return .refused("normal is not a relief level") }
+        if !HelperPolicy.holdRange.contains(holdMs) { return .refused("hold must be 1-30 seconds") }
+        return nil
+    }
+
+    /// Forces normal pressure and clears markers whose owner is gone (never a live hold's).
     public func restore() async throws {
         guard geteuid() == 0 else { throw ReliefError.notPermitted }
         let restored = Trigger.write(Trigger.restoreValue)
         if restored != 0 { throw ReliefError.restoreFailed(restored) }
-        if let marker { try? FileManager.default.removeItem(atPath: marker) }
+        if let markerPrefix { HoldMarkers.orphaned(prefix: markerPrefix).forEach { HoldMarkers.remove($0.path) } }
     }
 }
 
@@ -141,8 +155,7 @@ public enum ReliefAvailability: Sendable, Equatable {
         }
     }
 
-    /// An interrupted root download (SIGKILL) left the kernel in simulated pressure.
-    public static var interruptedHoldDetected: Bool {
-        FileManager.default.fileExists(atPath: HelperConstants.holdingMarker)
-    }
+    /// A holder died without restoring (SIGKILL, power loss): the kernel may still be in simulated
+    /// pressure. A live hold in progress does not count.
+    public static var interruptedHoldDetected: Bool { !HoldMarkers.orphaned().isEmpty }
 }

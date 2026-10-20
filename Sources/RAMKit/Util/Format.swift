@@ -32,7 +32,8 @@ public enum Format {
 
     /// "6s", "1m 05s", "2h 03m".
     public static func duration(_ seconds: Double) -> String {
-        let s = Int(seconds.rounded())
+        guard seconds.isFinite else { return "—" }
+        let s = Int(max(0, min(seconds, 1e9)).rounded())
         if s < 60 { return "\(s)s" }
         if s < 3600 { return String(format: "%dm %02ds", s / 60, s % 60) }
         return String(format: "%dh %02dm", s / 3600, (s % 3600) / 60)

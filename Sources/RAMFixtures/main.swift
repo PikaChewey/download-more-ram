@@ -6,7 +6,7 @@
 //   ram-fixture orphan   --mb N     starts a detached dumbhog and exits (the child is reparented to launchd)
 //   ram-fixture workload --mb N     allocates and writes N MiB as fast as it can, prints "seconds <t>", exits
 //
-// Every mode prints "ready <pid>" once its memory is resident, then sleeps until killed.
+// Every mode prints "ready <pid>" once its memory is resident, then parks in dispatchMain() until killed.
 // Pages are filled with non-zero data so the compressor cannot fold them into nothing.
 import Darwin
 import Dispatch
@@ -55,7 +55,9 @@ var pressureSource: DispatchSourceMemoryPressure?
 switch mode {
 case "cachehog":
     cache.fill(mb: arg("--mb", 256))
-    let src = DispatchSource.makeMemoryPressureSource(eventMask: [.warning, .critical], queue: .global())
+    // On the main queue: top-level code is main-actor isolated in Swift 6, so a handler on another
+    // queue would trip the runtime's isolation check (SIGTRAP) the moment pressure arrives.
+    let src = DispatchSource.makeMemoryPressureSource(eventMask: [.warning, .critical], queue: .main)
     src.setEventHandler {
         let freed = cache.free()
         if freed > 0 { print("freed \(freed)") }
@@ -99,4 +101,5 @@ default:
     exit(2)
 }
 
-while true { sleep(3600) }
+// Park on the main queue so pressure events are delivered (never returns).
+dispatchMain()

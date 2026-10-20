@@ -37,14 +37,14 @@ public enum HelperInstaller {
                 <key>\(HelperConstants.machService)</key>
                 <true/>
             </dict>
-            <!-- Runs once at boot so an interrupted hold is restored, then exits when idle;
-                 launchd relaunches it on demand and after a crash. -->
+            <!-- Runs once at boot so an interrupted hold is restored, then exits when idle (exit 0);
+                 launchd relaunches it on demand and after any unsuccessful exit, including SIGKILL. -->
             <key>RunAtLoad</key>
             <true/>
             <key>KeepAlive</key>
             <dict>
-                <key>Crashed</key>
-                <true/>
+                <key>SuccessfulExit</key>
+                <false/>
             </dict>
             <key>ProcessType</key>
             <string>Interactive</string>
@@ -55,7 +55,8 @@ public enum HelperInstaller {
     }
 
     /// `ram-helper` next to the running `ram` binary (both live in .build/<config>/ or in the app
-    /// bundle's Contents/Helpers/).
+    /// bundle's Contents/Helpers/). Whoever can write that directory decides what runs as root at
+    /// boot, so never put `ram helper install` in a restricted sudoers rule.
     public static func bundledHelperPath() -> String {
         let exe = URL(fileURLWithPath: CommandLine.arguments[0]).resolvingSymlinksInPath()
         let dir = (Bundle.main.executableURL ?? exe).resolvingSymlinksInPath().deletingLastPathComponent()
@@ -68,7 +69,8 @@ public enum HelperInstaller {
         guard fm.isExecutableFile(atPath: helperBinary) else { throw Failure.helperBinaryMissing(helperBinary) }
         _ = try? launchctl(["bootout", "system/\(HelperConstants.label)"])
         do {
-            try fm.createDirectory(atPath: "/Library/PrivilegedHelperTools", withIntermediateDirectories: true)
+            try fm.createDirectory(atPath: "/Library/PrivilegedHelperTools", withIntermediateDirectories: true,
+                                   attributes: [.posixPermissions: 0o755, .ownerAccountID: 0, .groupOwnerAccountID: 0])
             if fm.fileExists(atPath: HelperConstants.installedBinary) { try fm.removeItem(atPath: HelperConstants.installedBinary) }
             try fm.copyItem(atPath: helperBinary, toPath: HelperConstants.installedBinary)
             try fm.setAttributes([.posixPermissions: 0o755, .ownerAccountID: 0, .groupOwnerAccountID: 0],
@@ -89,7 +91,7 @@ public enum HelperInstaller {
         _ = Trigger.write(Trigger.restoreValue)
         _ = try? launchctl(["bootout", "system/\(HelperConstants.label)"])
         let fm = FileManager.default
-        for path in [HelperConstants.plistPath, HelperConstants.installedBinary, HelperConstants.holdingMarker]
+        for path in [HelperConstants.plistPath, HelperConstants.installedBinary] + HoldMarkers.all().map(\.path)
         where fm.fileExists(atPath: path) {
             try? fm.removeItem(atPath: path)
         }

@@ -53,19 +53,29 @@ signed_with_watchdog() {
   wait $pid
 }
 
+SIGN_FAILED=0
 sign() {
   local identity=$1 id=$2 file=$3
   local cmd=(codesign --force --sign "$identity" --timestamp=none --identifier "$id")
   [[ $identity != "-" ]] && cmd+=(--options runtime)
-  if ! signed_with_watchdog $cmd "$file"; then
-    echo "codesign with '$identity' failed for $file; signing ad hoc" >&2
-    codesign --force --sign - --identifier "$id" "$file"
-  fi
+  signed_with_watchdog $cmd "$file" || SIGN_FAILED=1
 }
 
-sign "$IDENTITY" ca.bryanyao.DownloadMoreRAM.cli $OUT/bin/ram
-sign "$IDENTITY" ca.bryanyao.DownloadMoreRAM.helper $OUT/bin/ram-helper
-sign "$IDENTITY" ca.bryanyao.DownloadMoreRAM.fixture $OUT/bin/ram-fixture
+sign_cli_products() {
+  sign "$1" ca.bryanyao.DownloadMoreRAM.cli $OUT/bin/ram
+  sign "$1" ca.bryanyao.DownloadMoreRAM.helper $OUT/bin/ram-helper
+  sign "$1" ca.bryanyao.DownloadMoreRAM.fixture $OUT/bin/ram-fixture
+}
+
+sign_cli_products "$IDENTITY"
+# Never ship a mix (a team-signed helper refuses an ad hoc CLI; an ad hoc helper accepts anyone):
+# if any signature failed, sign everything ad hoc.
+if (( SIGN_FAILED )) && [[ $IDENTITY != "-" ]]; then
+  echo "codesign with '$IDENTITY' failed; signing every binary ad hoc instead" >&2
+  IDENTITY=-
+  SIGN_FAILED=0
+  sign_cli_products -
+fi
 
 if (( APP_OK )) && [[ -f $BIN/DownloadMoreRAM ]]; then
   APP="$OUT/Download More RAM.app"

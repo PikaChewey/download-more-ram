@@ -39,6 +39,7 @@ public enum SafeKill {
         if r.uid != getuid() { return .refused(.otherUser) }
         if protectedNames.contains(r.name) { return .refused(.protected(r.name)) }
         if r.pid == getpid() || r.pid <= 1 || r.pid == frontmostPid { return .refused(.protected(r.name)) }
+        if let path = r.path, AppGrouper.isSystemPath(path) { return .refused(.protected(r.name)) }
         guard let current else { return .refused(.notFound) }
         if current.startTime != r.startTime || current.uid != r.uid { return .refused(.identityChanged) }
         return .ok

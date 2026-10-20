@@ -12,6 +12,7 @@
 #include <sys/resource.h>
 #include <signal.h>
 #include <sys/sysctl.h>
+#include <unistd.h>
 
 /* ---- private flavors, declared locally and size-checked against the xnu layouts ---------- */
 
@@ -327,42 +328,62 @@ int dm_resume_paused(pid_t pid) {
 
 /* ---- restore guard ------------------------------------------------------------------------- */
 
+/* Every catchable signal whose default action terminates the process. SIGKILL/SIGSTOP cannot be
+ * caught; the per-pid marker file covers those (the helper restores at its next start). */
+static const int g_guard_signals[] = {
+    SIGHUP, SIGINT, SIGQUIT, SIGILL, SIGTRAP, SIGABRT, SIGEMT, SIGFPE, SIGBUS, SIGSEGV, SIGSYS,
+    SIGPIPE, SIGALRM, SIGTERM, SIGXCPU, SIGXFSZ, SIGVTALRM, SIGPROF, SIGUSR1, SIGUSR2,
+};
+#define DM_GUARD_NSIG ((int)(sizeof g_guard_signals / sizeof g_guard_signals[0]))
+
 static int g_guard_mib[CTL_MAXNAME];
 static u_int g_guard_miblen = 0;
 static int32_t g_guard_value = 0;
 static volatile sig_atomic_t g_guard_armed = 0;
-static struct sigaction g_old_int, g_old_term, g_old_hup;
+static char g_guard_marker[1024];
+static struct sigaction g_guard_old[DM_GUARD_NSIG];
 
 static void dm_guard_handler(int sig) {
     if (g_guard_armed) {
         int32_t v = g_guard_value;
-        (void)sysctl(g_guard_mib, g_guard_miblen, NULL, NULL, &v, sizeof v);
+        int rc = sysctl(g_guard_mib, g_guard_miblen, NULL, NULL, &v, sizeof v);
+        if (rc == 0 && g_guard_marker[0] != '\0') (void)unlink(g_guard_marker);   /* async-signal-safe */
         g_guard_armed = 0;
     }
     signal(sig, SIG_DFL);
     raise(sig);
 }
 
-int dm_restore_guard_arm(const char *name, int32_t restore_value) {
+int dm_restore_guard_arm(const char *name, int32_t restore_value, const char *marker) {
+    if (g_guard_armed) return EBUSY;                 /* one hold per process at a time */
     size_t len = CTL_MAXNAME;
     if (sysctlnametomib(name, g_guard_mib, &len) != 0) return errno;
     g_guard_miblen = (u_int)len;
     g_guard_value = restore_value;
+    g_guard_marker[0] = '\0';
+    if (marker != NULL) strlcpy(g_guard_marker, marker, sizeof g_guard_marker);
     struct sigaction sa;
     memset(&sa, 0, sizeof sa);
     sa.sa_handler = dm_guard_handler;
     sigemptyset(&sa.sa_mask);
+    for (int i = 0; i < DM_GUARD_NSIG; i++) sigaddset(&sa.sa_mask, g_guard_signals[i]);
     g_guard_armed = 1;
-    sigaction(SIGINT, &sa, &g_old_int);
-    sigaction(SIGTERM, &sa, &g_old_term);
-    sigaction(SIGHUP, &sa, &g_old_hup);
+    for (int i = 0; i < DM_GUARD_NSIG; i++) {
+        struct sigaction old;
+        sigaction(g_guard_signals[i], NULL, &old);
+        g_guard_old[i] = old;
+        /* An ignored SIGPIPE stays ignored: the write just fails with EPIPE, nothing dies. */
+        if (old.sa_handler == SIG_IGN) continue;
+        sigaction(g_guard_signals[i], &sa, NULL);
+    }
     return 0;
 }
 
 void dm_restore_guard_disarm(void) {
-    if (!g_guard_armed && g_guard_miblen == 0) return;
+    if (!g_guard_armed) return;
     g_guard_armed = 0;
-    sigaction(SIGINT, &g_old_int, NULL);
-    sigaction(SIGTERM, &g_old_term, NULL);
-    sigaction(SIGHUP, &g_old_hup, NULL);
+    for (int i = 0; i < DM_GUARD_NSIG; i++) sigaction(g_guard_signals[i], &g_guard_old[i], NULL);
+    g_guard_marker[0] = '\0';
 }
+
+int dm_restore_guard_is_armed(void) { return g_guard_armed ? 1 : 0; }

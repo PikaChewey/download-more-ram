@@ -91,10 +91,13 @@ int dm_resume_paused(pid_t pid);
 
 /* ---- restore guard --------------------------------------------------------------------- */
 
-/* While armed, SIGINT/SIGTERM/SIGHUP first write restore_value to the sysctl `name` (resolved to a
- * MIB up front so the handler only makes the raw syscall), then re-raise with the default action.
- * 0 on success, else errno. */
-int dm_restore_guard_arm(const char *name, int32_t restore_value);
+/* While armed, every catchable terminating signal (SIGINT, SIGTERM, SIGHUP, SIGQUIT, SIGPIPE,
+ * SIGTRAP, SIGABRT, SIGSEGV, SIGBUS, ...) first writes restore_value to the sysctl `name` (resolved
+ * to a MIB up front so the handler only makes the raw syscall), unlinks `marker` (may be NULL) if
+ * that succeeded, then re-raises with the default action. Returns 0, EBUSY if a hold is already
+ * armed in this process, or the errno of the name lookup. */
+int dm_restore_guard_arm(const char *name, int32_t restore_value, const char *marker);
 void dm_restore_guard_disarm(void);
+int dm_restore_guard_is_armed(void);
 
 #endif

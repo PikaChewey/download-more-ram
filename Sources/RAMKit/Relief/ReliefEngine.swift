@@ -42,6 +42,10 @@ public actor ReliefEngine {
     public let settleMs: Int
     let sampling: any Sampling
     let wall: (@Sendable (SystemSample) -> Double)?
+    /// Levers to run after the signal (each needs the user's yes where `needsConsent`).
+    public let levers: [LeverKind]
+    let actions: any LeverActions
+    let info: any ProcessInfoSource
 
     public static let baselineSamples = 3
     public static let baselineIntervalMs = 1000
@@ -49,13 +53,17 @@ public actor ReliefEngine {
 
     public init(backend: any ReliefBackend, level: PressureLevel = .critical, holdMs: Int = 10_000,
                 settleMs: Int = 5_000, sampling: any Sampling = LiveSampling(),
-                wall: (@Sendable (SystemSample) -> Double)? = nil) {
+                wall: (@Sendable (SystemSample) -> Double)? = nil, levers: [LeverKind] = [],
+                actions: any LeverActions = LiveLeverActions(), info: any ProcessInfoSource = LiveProcessInfo()) {
         self.backend = backend
         self.level = level
         self.holdMs = holdMs
         self.settleMs = settleMs
         self.sampling = sampling
         self.wall = wall
+        self.levers = levers.filter { $0 != .kernelSignal }
+        self.actions = actions
+        self.info = info
     }
 
     public func run(progress: @Sendable (ReliefProgress) -> Void = { _ in }) async throws -> Receipt {
@@ -65,9 +73,11 @@ public actor ReliefEngine {
 
         // 1. Baseline: drift and CPU decide which apps are too busy to judge.
         var baseline: [ProcessSnapshot] = []
+        var cpu = CPUHistory()
         for i in 0..<Self.baselineSamples {
             if i > 0 { try await sampling.sleep(ms: Self.baselineIntervalMs) }
             baseline.append(sampling.processSnapshot())
+            cpu.add(baseline[baseline.count - 1])
             progress(ReliefProgress(phase: .baseline, elapsed: sampling.now().timeIntervalSince(started),
                                     total: total, reclaimedSoFar: 0, rateBytesPerSec: 0, topApps: []))
         }
@@ -89,6 +99,7 @@ public actor ReliefEngine {
         while sampling.now().timeIntervalSince(reliefStart) * 1000 < Double(holdMs + settleMs) {
             try await sampling.sleep(ms: Self.tickMs)
             let current = sampling.processSnapshot()
+            cpu.add(current)
             let m = Measurement.deltas(before: before, after: current, busy: busy)
             let t = sampling.now()
             let dt = t.timeIntervalSince(lastTime)
@@ -102,18 +113,41 @@ public actor ReliefEngine {
         }
         try await relief.value
 
-        // 4. Final reading and receipt.
-        let after = sampling.processSnapshot()
+        // 4. The signal's own result, measured over its window.
+        let afterSignal = sampling.processSnapshot()
+        cpu.add(afterSignal)
+        let m = Measurement.deltas(before: before, after: afterSignal, busy: busy)
+        let signalEnd = sampling.now()
+        let gainers = m.apps.filter { $0.delta > 0 }.prefix(4).map { "\($0.name) \(Format.bytes($0.delta, signed: true))" }
+        var leverResults = [LeverResult(kind: .kernelSignal, title: LeverKind.kernelSignal.title, bytes: m.headline,
+                                        targets: m.apps.filter { $0.delta > 0 }.map(\.name),
+                                        detail: gainers.isEmpty ? "no app gave memory back" : gainers.joined(separator: ", "),
+                                        durationS: signalEnd.timeIntervalSince(reliefStart))]
+
+        // 5. Allowed levers, one after another, each with its own before/after.
+        let sessions = AgentClassifier.sessions(afterSignal, cpuHistory: cpu, info: info, now: signalEnd)
+        let leftovers = AgentClassifier.leftovers(afterSignal, cpuHistory: cpu, info: info, now: signalEnd)
+        var wallNow: WallStatus? = nil
+        if let s = try? sampling.systemSample() { var wm = WallModel(); wm.add(s); wallNow = wm.status() }
+        if !levers.isEmpty {
+            leverResults += try await LeverRunner(sampling: sampling, actions: actions)
+                .run(levers, sessions: sessions, leftovers: leftovers, wall: wallNow)
+        }
+        let offers = LeverPlanner.offers(snapshot: afterSignal, sessions: sessions, leftovers: leftovers, wall: wallNow, now: signalEnd)
+            .filter { !levers.contains($0.kind) }
+
+        // 6. Final reading and receipt.
         let systemAfter = try sampling.systemSample()
-        let m = Measurement.deltas(before: before, after: after, busy: busy)
         let finished = sampling.now()
+        let headline = leverResults.compactMap(\.bytes).reduce(0, +)
         progress(ReliefProgress(phase: .done, elapsed: finished.timeIntervalSince(started), total: total,
-                                reclaimedSoFar: m.headline, rateBytesPerSec: 0, topApps: Array(m.apps.prefix(5))))
+                                reclaimedSoFar: headline, rateBytesPerSec: 0, topApps: Array(m.apps.prefix(5))))
         return Receipt(
             id: Receipt.makeID(started), startedAt: started, durationS: finished.timeIntervalSince(started),
             backend: backend.name, level: level, holdMs: holdMs, machine: .current(),
-            headlineBytes: m.headline, grossFreedBytes: m.grossFreed, apps: m.apps, excludedBusy: m.excluded,
+            headlineBytes: headline, grossFreedBytes: m.grossFreed, apps: m.apps, excludedBusy: m.excluded,
             newApps: m.new, goneApps: m.gone, systemBefore: systemBefore, systemAfter: systemAfter,
-            wallBefore: wall?(systemBefore), wallAfter: wall?(systemAfter))
+            wallBefore: wall?(systemBefore), wallAfter: wall?(systemAfter), levers: leverResults,
+            offers: offers.isEmpty ? nil : offers)
     }
 }

@@ -102,12 +102,17 @@ public struct WallModel: Sendable {
         let free = last.swapTotal - min(last.swapTotal, last.swapUsed)
         guard free < Self.swapHiwater else { return nil }
         var since = history.last!.t
+        var firstSwapouts = last.swapouts
         for (t, s) in history.reversed() {
             let f = s.swapTotal - min(s.swapTotal, s.swapUsed)
             guard f < Self.swapHiwater, s.swapTotal == last.swapTotal else { break }
             since = t
+            firstSwapouts = s.swapouts
         }
         let stuck = history.last!.t - since
+        // macOS only tries to add a swapfile while it is swapping out; a quiet system can sit under
+        // the hiwater mark indefinitely without being anywhere near the wall.
+        guard last.swapouts > firstSwapouts else { return nil }
         return stuck >= Self.stuckAfterS ? stuck : nil
     }
 
@@ -124,6 +129,8 @@ public struct WallModel: Sendable {
 public struct WallInsights: Codable, Sendable {
     public var nextToPause: ProcessRecord?
     public var nextToPauseApp: String?
+    /// What macOS will do to it: suspend (the usual "(paused)"), kill, or throttle.
+    public var nextAction: ProcessRecord.PauseAction?
     public var stillPaused: [ProcessRecord]
     public var stillPausedApps: [String]
 
@@ -137,10 +144,17 @@ public struct WallInsights: Codable, Sendable {
             if let bundle = head.path.flatMap(AppGrouper.outermostBundlePath) { return AppGrouper.bundleDisplayName(bundlePath: bundle) }
             return head.name
         }
-        let next = s.records.filter { $0.pauseAction == .suspend && !$0.pausedByWall }.max { compressed($0) < compressed($1) }
+        // xnu: a process that did NOT register and holds > 50% of all compressed pages is killed outright;
+        // otherwise the largest registrant (throttle/suspend/kill) not yet acted on (PA_* clear) gets its action.
+        let totalCompressed = system.compressedUncompressedBytes
+        let outright = s.records.filter { $0.pauseAction == .none }.max { compressed($0) < compressed($1) }
+            .flatMap { totalCompressed > 0 && compressed($0) * 2 > totalCompressed ? $0 : nil }
+        let next = s.records.filter { $0.pauseAction != .none && $0.bsdFlags & 0x1800 == 0 }.max { compressed($0) < compressed($1) }
         let paused = s.records.filter(\.pausedByWall).sorted { $0.footprint > $1.footprint }
         var apps: [String] = []
         for r in paused where !apps.contains(appName(r)) { apps.append(appName(r)) }
-        return WallInsights(nextToPause: next, nextToPauseApp: next.map(appName), stillPaused: paused, stillPausedApps: apps)
+        return WallInsights(nextToPause: outright ?? next, nextToPauseApp: (outright ?? next).map(appName),
+                            nextAction: outright != nil ? .kill : next?.pauseAction,
+                            stillPaused: paused, stillPausedApps: apps)
     }
 }

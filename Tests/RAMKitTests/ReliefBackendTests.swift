@@ -6,11 +6,11 @@ import Testing
 @Suite("Relief backends (unprivileged)")
 struct ReliefBackendTests {
     @Test(.enabled(if: geteuid() != 0)) func directBackendRefusesWithoutRoot() async {
-        let marker = FileManager.default.temporaryDirectory.appendingPathComponent("ram-marker-\(UUID().uuidString)").path
+        let prefix = FileManager.default.temporaryDirectory.appendingPathComponent("ram-marker-\(UUID().uuidString)").path
         await #expect(throws: ReliefError.notPermitted) {
-            try await DirectSysctlBackend(marker: marker).relieve(level: .critical, holdMs: 1000)
+            try await DirectSysctlBackend(markerPrefix: prefix).relieve(level: .critical, holdMs: 1000)
         }
-        #expect(!FileManager.default.fileExists(atPath: marker))
+        #expect(HoldMarkers.all(prefix: prefix).isEmpty)
     }
 
     @Test(.enabled(if: geteuid() != 0 && !FileManager.default.fileExists(atPath: HelperConstants.plistPath)))

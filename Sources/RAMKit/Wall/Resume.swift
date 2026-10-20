@@ -37,8 +37,8 @@ public enum PausedApps {
     }
 
     /// "Safe to resume": the wall has receded and nothing says it is coming back right away.
-    public static func safeToResume(_ wall: WallStatus?, system: SystemSample) -> Bool {
+    public static func safeToResume(_ wall: WallStatus?, system: SystemSample?) -> Bool {
         guard let wall else { return false }
-        return !wall.imminent && wall.percent < 70 && system.pressureLevel != .critical
+        return !wall.imminent && wall.percent < 70 && system?.pressureLevel != .critical
     }
 }

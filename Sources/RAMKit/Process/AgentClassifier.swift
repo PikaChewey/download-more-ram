@@ -151,7 +151,7 @@ public enum ClaudeTranscripts {
     }
 
     public static var defaultProjectsDir: URL {
-        FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".claude/projects", isDirectory: true)
+        RealUser.home.appendingPathComponent(".claude/projects", isDirectory: true)
     }
 }
 
@@ -249,8 +249,9 @@ public enum AgentClassifier {
             guard r.uid == uid, r.ppid == 1, r.responsiblePid != r.pid, isDevTool(r) else { continue }
             let ageS = age(r, now: now)
             let lifetimeCPU = ageS > 0 ? Double(r.cpuTimeNs) / 1e9 / ageS : 1
-            let idle = max(cpuHistory.idleSeconds(r.key, now: now),
-                           lifetimeCPU < 0.005 && ageS >= 1800 ? ageS : 0)
+            let activeNow = (cpuHistory.cpuFraction(r.key) ?? 0) > CPUHistory.activeFraction
+            let idle = activeNow ? 0 : max(cpuHistory.idleSeconds(r.key, now: now),
+                                           lifetimeCPU < 0.005 && ageS >= 1800 ? ageS : 0)
             guard idle >= idleThreshold else { continue }
             let what = describe(r, argv: info.argv(pid: r.pid))
             let owner: String
@@ -263,6 +264,15 @@ public enum AgentClassifier {
             out.append(Leftover(record: r, reason: "orphaned \(what) \(owner) · idle \(Format.duration(idle))", idleS: idle))
         }
         return out.sorted { $0.record.footprint > $1.record.footprint }
+    }
+
+    /// Archived in the Claude app AND quiet: not using CPU now and no recorded activity for 30 min.
+    /// (The archived flag comes from an id the process got at launch, so it alone is not enough.)
+    public static func safeToQuitArchived(_ s: AgentSession, now: Date = Date()) -> Bool {
+        guard s.archived else { return false }
+        if let cpu = s.cpuFraction, cpu > CPUHistory.activeFraction { return false }
+        if let last = s.lastActive, now.timeIntervalSince(last) < 1800 { return false }
+        return true
     }
 
     /// "~" for the home folder, "~/Projects/stdout" -> "stdout", "/" -> "/".

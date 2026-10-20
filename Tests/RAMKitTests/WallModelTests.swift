@@ -6,8 +6,9 @@ private let gib: UInt64 = 1 << 30
 private let mib: UInt64 = 1 << 20
 
 func wallSample(t: Double, swapTotal: UInt64 = 11 * gib, swapUsed: UInt64, segments: UInt64 = 243_585,
-                pages: UInt64 = 2_090_000, diskFree: UInt64 = 93 * gib, files: Int = 11) -> SystemSample {
+                pages: UInt64 = 2_090_000, diskFree: UInt64 = 93 * gib, files: Int = 11, swapouts: UInt64 = 0) -> SystemSample {
     var s = fakeSystem()
+    s.swapouts = swapouts
     s.timestamp = Date(timeIntervalSince1970: t)
     s.swapTotal = swapTotal
     s.swapUsed = swapUsed
@@ -27,7 +28,7 @@ struct WallModelTests {
         var m = WallModel()
         for i in 0...15 {
             let used = 11 * gib - 300 * mib + UInt64(i) * 18 * mib     // free swap falls from 300 MiB to 30 MiB
-            m.add(wallSample(t: Double(i) * 2, swapUsed: used))
+            m.add(wallSample(t: Double(i) * 2, swapUsed: used, swapouts: 1_000 + UInt64(i) * 5_000))   // still swapping out
         }
         let w = try #require(m.status())
         #expect(w.percent >= 95)

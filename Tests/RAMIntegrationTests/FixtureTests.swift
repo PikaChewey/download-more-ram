@@ -29,6 +29,10 @@ enum Env {
 
     static var memoryOK: Bool { (Sysctl.int("kern.memorystatus_level") ?? 0) >= 20 && Sysctl.int("kern.memorystatus_vm_pressure_level") != 4 }
     static var fixturesReady: Bool { binary("ram-fixture") != nil && memoryOK }
+    /// The helper suite allocates only 512 MiB in total, so it may run down to 15% available.
+    static var smallFixturesReady: Bool {
+        binary("ram-fixture") != nil && (Sysctl.int("kern.memorystatus_level") ?? 0) >= 15 && Sysctl.int("kern.memorystatus_vm_pressure_level") != 4
+    }
 }
 
 /// A spawned fixture whose stdout lines are collected as they arrive.
@@ -124,11 +128,11 @@ struct FixtureTests {
 /// pressure-aware process, which frees its cache, while a process that ignores pressure keeps its
 /// memory. Runs the signed CLI (the helper only accepts team-signed callers).
 @Suite("Relief end to end (helper)", .serialized,
-       .enabled(if: Env.fixturesReady && HelperInstaller.isInstalled && Env.signedCLI != nil))
+       .enabled(if: Env.smallFixturesReady && HelperInstaller.isInstalled && Env.signedCLI != nil))
 struct ReliefEndToEndTests {
     @Test func pressureAwareCacheIsReturnedAndDumbHogIsNot() throws {
-        let cache = try Fixture(["cachehog", "--mb", "512"])
-        let dumb = try Fixture(["dumbhog", "--mb", "512"])
+        let cache = try Fixture(["cachehog", "--mb", "256"])
+        let dumb = try Fixture(["dumbhog", "--mb", "256"])
         defer { cache.stop(); dumb.stop() }
         let cachePid = try #require(cache.wait(for: "ready").flatMap { Int32($0) })
         let dumbPid = try #require(dumb.wait(for: "ready").flatMap { Int32($0) })
@@ -151,7 +155,7 @@ struct ReliefEndToEndTests {
         let cacheAfter = try #require(ProcessSampler.record(pid: cachePid)).footprint
         let dumbAfter = try #require(ProcessSampler.record(pid: dumbPid)).footprint
         let returned = Double(Int64(cacheBefore) - Int64(cacheAfter))
-        #expect(returned >= 0.9 * 512 * 1_048_576, "cachehog returned \(returned / 1_048_576) MiB")
+        #expect(returned >= 0.9 * 256 * 1_048_576, "cachehog returned \(returned / 1_048_576) MiB")
         let dumbChange = abs(Double(Int64(dumbAfter) - Int64(dumbBefore))) / Double(dumbBefore)
         #expect(dumbChange < 0.05, "dumbhog changed \(dumbChange * 100)%")
         // The kernel is back to reporting real pressure (never stuck at the simulated level).
@@ -160,6 +164,7 @@ struct ReliefEndToEndTests {
     }
 
     @Test func killingTheClientMidHoldStillRestoresNormal() throws {
+        sleep(25)   // the helper allows one download per 20 s; the previous test just made one
         let cli = Process()
         cli.executableURL = URL(fileURLWithPath: Env.signedCLI!)
         cli.arguments = ["download", "--hold", "6", "--json"]

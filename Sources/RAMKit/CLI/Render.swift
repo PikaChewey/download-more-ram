@@ -16,6 +16,15 @@ public enum Render {
         public func wall(_ pct: Double, _ text: String) -> String { pct >= 85 ? red(text) : pct >= 70 ? amber(text) : green(text) }
     }
 
+    /// "pauses" (suspend, the usual), "kills" (registered to be killed, or > 50% of compressed memory), "throttles".
+    public static func actionVerb(_ a: ProcessRecord.PauseAction?) -> String {
+        switch a {
+        case .kill: "kills"
+        case .throttle: "throttles"
+        default: "pauses"
+        }
+    }
+
     public static func pad(_ s: String, _ width: Int) -> String {
         s.count >= width ? String(s.prefix(width)) : s + String(repeating: " ", count: width - s.count)
     }
@@ -39,7 +48,7 @@ public enum Render {
             out += "\n"
         }
         if let i = insights {
-            if let app = i.nextToPauseApp { out += style.dim("        if you hit it, macOS pauses \(app) first") + "\n" }
+            if let app = i.nextToPauseApp { out += style.dim("        if you hit it, macOS \(Render.actionVerb(i.nextAction)) \(app) first") + "\n" }
             if !i.stillPausedApps.isEmpty {
                 out += style.amber("Frozen  macOS paused part of \(i.stillPausedApps.joined(separator: ", ")) at the last wall and never resumed it — restart \(i.stillPausedApps.count == 1 ? "it" : "them")") + "\n"
             }
@@ -118,6 +127,13 @@ public enum Render {
 
     public static func receipt(_ r: Receipt, style: Style) -> String {
         var out = "\n" + style.bold(style.green("✓ Downloaded \(Format.bytes(r.headlineBytes)) of RAM")) + " in \(Format.duration(r.durationS))\n\n"
+        if let levers = r.levers, levers.count > 1 {
+            for l in levers {
+                let amount = l.bytes.map { Format.bytes($0, signed: true) } ?? "—"
+                out += "  \(pad(l.title, 34)) \(lpad(l.bytes.map { $0 >= 0 ? style.green(amount) : style.red(amount) } ?? style.dim(amount), style.color ? 19 : 10))  \(style.dim(l.detail ?? ""))\n"
+            }
+            out += style.dim("  signal, per app:") + "\n"
+        }
         let shown = r.apps.filter { $0.delta != 0 }.prefix(12)
         let maxGain = Double(shown.map { max(0, $0.delta) }.max() ?? 1)
         for a in shown {
@@ -133,6 +149,13 @@ public enum Render {
         out += "\n  Swap \(Format.bytes(sb.swapUsed)) → \(Format.bytes(sa.swapUsed)) · pressure \(sb.pressureLevel.word) → \(sa.pressureLevel.word)"
         if let wb = r.wallBefore, let wa = r.wallAfter { out += " · wall \(Format.percent(wb)) → \(Format.percent(wa))" }
         out += "\n" + style.dim("  Measured with phys_footprint (Activity Monitor's Memory column); busy apps and apps that started/quit are not counted.") + "\n"
+        if let offers = r.offers, !offers.isEmpty {
+            out += "\n" + style.bold("  Also available") + "\n"
+            for o in offers {
+                let est = o.estimateBytes.map { " ~" + Format.bytes($0) } ?? ""
+                out += "  \(style.green(est.isEmpty ? "·" : est)) \(o.reason)  " + style.dim("ram download --levers \(o.kind.rawValue)") + "\n"
+            }
+        }
         return out
     }
 
@@ -156,7 +179,7 @@ public enum Render {
             out += "\n"
         }
         out += "  memory \(Format.bytes(s.memoryUsedBytes)) of \(Format.bytes(s.physicalBytes)) · swap \(Format.bytes(s.swapUsed)) · pressure \(style.pressure(s.pressureLevel))\n"
-        if let next = d.insights.nextToPauseApp { out += "  If you hit it, macOS pauses \(next) first.\n" }
+        if let next = d.insights.nextToPauseApp { out += "  If you hit it, macOS \(Render.actionVerb(d.insights.nextAction)) \(next) first.\n" }
         if !d.insights.stillPausedApps.isEmpty {
             out += "  " + style.amber("macOS paused \(d.insights.stillPausedApps.joined(separator: ", ")) at the wall and never resumed them.") + "\n"
             for sp in d.spinningWhilePaused {

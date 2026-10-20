@@ -19,9 +19,10 @@ public enum HelperConstants {
     public static let machService = label
     public static let installedBinary = "/Library/PrivilegedHelperTools/\(label)"
     public static let plistPath = "/Library/LaunchDaemons/\(label).plist"
-    /// Exists only while a hold is in progress; a helper that finds it at startup restores normal.
+    /// v1.0 single marker (still recognised); v1.1+ writes per-process markers `<prefix>.<pid>`.
     public static let holdingMarker = "/var/run/\(label).holding"
-    public static let version = "1.0.0"
+    public static let holdingMarkerPrefix = "/var/run/\(label).holding"
+    public static let version = "1.1.0"
 }
 
 public struct HelperStatus: Codable, Sendable {

@@ -1,0 +1,165 @@
+{
+  "diagnosis" : {
+    "agentBytes" : 17663213880,
+    "agentCount" : 13,
+    "archivedAgentBytes" : 0,
+    "archivedAgentCount" : 0,
+    "duplicates" : [
+      {
+        "bytes" : 3386536288,
+        "command" : "rea mcp",
+        "count" : 16,
+        "pids" : [
+          5367,
+          15200,
+          64006,
+          67449,
+          71027,
+          72680,
+          73156,
+          73197,
+          76074,
+          77217,
+          78388,
+          78478,
+          79366,
+          80961,
+          81258,
+          81481
+        ],
+        "sessions" : 11
+      }
+    ],
+    "firefoxBytes" : 13451817416,
+    "firefoxGPUBytes" : 1571652880,
+    "firefoxUnloaderOn" : true,
+    "fixes" : [
+      {
+        "estimateBytes" : 3174877770,
+        "how" : "\"rea\" is set up for every session in ~\/.claude.json (user scope): scope it to the projects that use it (claude mcp \/ \/mcp), or close idle sessions",
+        "title" : "16 copies of the same server (rea mcp) across 11 agent sessions: each session starts its own"
+      },
+      {
+        "estimateBytes" : 1571652880,
+        "how" : "ram firefox gpu-restart",
+        "title" : "Restart Firefox's GPU process (Firefox relaunches it; WebGL\/canvas reset)"
+      }
+    ],
+    "insights" : {
+      "nextAction" : "suspend",
+      "nextToPause" : {
+        "bsdFlags" : 20988944,
+        "coalitionId" : 39132,
+        "cpuTimeNs" : 256632882500,
+        "footprint" : 3370879184,
+        "lifetimeMaxFootprint" : 3420178640,
+        "name" : "Blender",
+        "path" : "\/Applications\/Blender.app\/Contents\/MacOS\/Blender",
+        "pid" : 77437,
+        "ppid" : 77432,
+        "residentBytes" : 149504000,
+        "responsiblePid" : 77197,
+        "startTime" : 1792513670233522,
+        "uid" : 501
+      },
+      "nextToPauseApp" : "Claude Code",
+      "stillPaused" : [
+
+      ],
+      "stillPausedApps" : [
+
+      ]
+    },
+    "leftovers" : [
+
+    ],
+    "quietAgentBytes" : 0,
+    "quietAgentCount" : 0,
+    "reliefAvailable" : true,
+    "spinningWhilePaused" : [
+
+    ],
+    "topApps" : [
+      {
+        "footprint" : 13451817416,
+        "name" : "Firefox",
+        "processes" : 44
+      },
+      {
+        "footprint" : 10104527656,
+        "name" : "Claude Code",
+        "processes" : 8
+      },
+      {
+        "footprint" : 7317192584,
+        "name" : "ChatGPT",
+        "processes" : 71
+      },
+      {
+        "footprint" : 2691903280,
+        "name" : "Claude",
+        "processes" : 34
+      },
+      {
+        "footprint" : 796379464,
+        "name" : "DrRacket",
+        "processes" : 2
+      },
+      {
+        "footprint" : 603521760,
+        "name" : "Claude Code",
+        "processes" : 6
+      }
+    ],
+    "wall" : {
+      "imminent" : false,
+      "limitingFactor" : "compressorSegments",
+      "percent" : 36.43994672365416,
+      "reason" : "compressed memory fills 36% of the 48.20 GB macOS can hold"
+    }
+  },
+  "events" : [
+    {
+      "end" : "2026-10-16T16:46:39Z",
+      "pausedApps" : [
+
+      ],
+      "start" : "2026-10-16T07:46:17Z"
+    },
+    {
+      "end" : "2026-10-16T17:09:48Z",
+      "pausedApps" : [
+
+      ],
+      "start" : "2026-10-16T16:48:34Z"
+    },
+    {
+      "end" : "2026-10-16T17:26:18Z",
+      "pausedApps" : [
+
+      ],
+      "start" : "2026-10-16T17:18:43Z"
+    },
+    {
+      "end" : "2026-10-20T07:36:44Z",
+      "pausedApps" : [
+        "Firefox"
+      ],
+      "start" : "2026-10-20T02:50:38Z"
+    },
+    {
+      "end" : "2026-10-20T07:59:35Z",
+      "pausedApps" : [
+        "ChatGPT"
+      ],
+      "start" : "2026-10-20T07:40:04Z"
+    },
+    {
+      "end" : "2026-10-20T14:28:29Z",
+      "pausedApps" : [
+
+      ],
+      "start" : "2026-10-20T08:49:18Z"
+    }
+  ]
+}

@@ -1,0 +1,136 @@
+{
+ "note": "Redacted copy of `ram agents --json` (2026-10-20 13:18 EDT): session titles, labels, working directories and process paths removed.",
+ "duplicates": [
+  {
+   "bytes": 3386536288,
+   "command": "rea mcp",
+   "count": 16,
+   "pids": [
+    5367,
+    15200,
+    64006,
+    67449,
+    71027,
+    72680,
+    73156,
+    73197,
+    76074,
+    77217,
+    78388,
+    78478,
+    79366,
+    80961,
+    81258,
+    81481
+   ],
+   "sessions": 11
+  }
+ ],
+ "leftovers": [],
+ "sessions": [
+  {
+   "tool": "claudeCode",
+   "host": "Claude",
+   "archived": false,
+   "footprint": 10104544040,
+   "processes": 8,
+   "topChildren": "Blender \u00d73, node, zsh \u00d72"
+  },
+  {
+   "tool": "codex",
+   "host": "ChatGPT",
+   "archived": false,
+   "footprint": 3225907848,
+   "processes": 47,
+   "topChildren": "node \u00d726, node_repl \u00d712, codex"
+  },
+  {
+   "tool": "claudeCode",
+   "host": "Claude",
+   "archived": false,
+   "footprint": 601752192,
+   "processes": 6,
+   "topChildren": "node, ram \u00d72, zsh \u00d72"
+  },
+  {
+   "tool": "claudeCode",
+   "host": "Claude",
+   "archived": false,
+   "footprint": 532020568,
+   "processes": 2,
+   "topChildren": "node"
+  },
+  {
+   "tool": "claudeCode",
+   "host": "Claude",
+   "archived": false,
+   "footprint": 512032760,
+   "processes": 4,
+   "topChildren": "node, SourceKitService, sourcekit-lsp"
+  },
+  {
+   "tool": "claudeCode",
+   "host": "Claude",
+   "archived": false,
+   "footprint": 473201792,
+   "processes": 2,
+   "topChildren": "node"
+  },
+  {
+   "tool": "claudeCode",
+   "host": "Claude",
+   "archived": false,
+   "footprint": 448395888,
+   "processes": 2,
+   "topChildren": "node"
+  },
+  {
+   "tool": "claudeCode",
+   "host": "Claude",
+   "archived": false,
+   "footprint": 444890936,
+   "processes": 2,
+   "topChildren": "node"
+  },
+  {
+   "tool": "claudeCode",
+   "host": "Claude",
+   "archived": false,
+   "footprint": 428506144,
+   "processes": 2,
+   "topChildren": "node"
+  },
+  {
+   "tool": "claudeCode",
+   "host": "Claude",
+   "archived": false,
+   "footprint": 417169136,
+   "processes": 2,
+   "topChildren": "node"
+  },
+  {
+   "tool": "claudeCode",
+   "host": "Claude",
+   "archived": false,
+   "footprint": 416299656,
+   "processes": 2,
+   "topChildren": "node"
+  },
+  {
+   "tool": "codex",
+   "host": "ChatGPT",
+   "archived": false,
+   "footprint": 41468912,
+   "processes": 1,
+   "topChildren": ""
+  },
+  {
+   "tool": "codex",
+   "host": "ChatGPT",
+   "archived": false,
+   "footprint": 14812072,
+   "processes": 1,
+   "topChildren": ""
+  }
+ ]
+}

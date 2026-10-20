@@ -18,8 +18,10 @@ gate() {
   until scripts/memory-gate.sh >/dev/null; do echo "waiting for memory to recover ($(scripts/memory-gate.sh))"; sleep 30; done
 }
 
+# The real-apps bench allocates nothing, so it runs under the bench's own gate (>= 15% available,
+# not critical). The fixture and workload benches allocate ~1 GiB and wait for >= 20%.
+$RAM bench real --trials 5 2>&1 | tee bench/logs/real.log
 gate; $RAM bench synthetic --trials 3 --hogs 2 --mb 256 2>&1 | tee bench/logs/synthetic.log
-gate; $RAM bench real --trials 5 2>&1 | tee bench/logs/real.log
 gate; $RAM bench perf --trials 5 --mb 1024 2>&1 | tee bench/logs/perf.log
 
 gate; sleep 60

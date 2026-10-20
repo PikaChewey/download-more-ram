@@ -1,0 +1,17 @@
+{
+  "lever": "firefox-gpu-restart",
+  "when": "2026-10-20T12:42:42-04:00",
+  "machine": "Apple M5 · 16 GB · macOS 26.5.2",
+  "method": "ram status --json before and 5/15/30/60 s after `ram firefox gpu-restart`; Firefox = responsible-pid group footprint (phys_footprint)",
+  "gpuProcessBefore": "7.15 GB (uptime 3d 23h)",
+  "gpuProcessAfter60s": "1.68 GB (relaunched by Firefox)",
+  "firefoxBefore": 19706451968,
+  "firefoxAfter5s": 13135889200,
+  "firefoxAfter60s": 13246742216,
+  "returnedAfter60s": 6459709752,
+  "wallBefore": 41.74,
+  "wallAfter60s": 36.15,
+  "swapUsedBefore": 14270267392,
+  "swapUsedAfter60s": 13784252416,
+  "notes": "Other heavy work was running (a Blender render in another session). Firefox stayed open; the GPU process came back by itself."
+}

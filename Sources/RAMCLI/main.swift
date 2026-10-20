@@ -381,18 +381,29 @@ case "watch":
     if autopilotOn && backend == nil { fail(ReliefError.notPermitted.description, code: 3) }
     var wall = WallModel()
     var policy = AutopilotPolicy()
-    var lastLine = ""
+    var growth = GrowthTracker()
+    var tick = 0
+    var lastKey = ""
+    var lastPrint = Date.distantPast
     print(style.dim("Watching memory every 2 s\(autopilotOn ? " · autopilot on" : ""). Ctrl-C to stop."))
     while true {
         guard let s = try? SystemSampler.read() else { usleep(2_000_000); continue }
         wall.add(s)
+        // Who is growing: a process snapshot every 10 s (the system reading above is the cheap one).
+        if tick % 5 == 0 { growth.add(ProcessSampler.snapshot(includePaths: true)) }
+        tick += 1
         if let w = wall.status() {
             var line = "\(Format.percent(w.percent)) to the wall · swap \(Format.bytes(s.swapUsed)) · pressure \(s.pressureLevel.word)"
             if w.imminent { line += " · IMMINENT" } else if let eta = w.etaSeconds { line += " · ~\(Format.duration(eta)) left" }
-            if line != lastLine {
+            let grower = growth.top(1).first
+            if let grower { line += " · growing: " + GrowthTracker.describe(grower) }
+            // Print when something that matters changes (not every swap wobble), else every 30 s.
+            let key = "\(Int(w.percent))|\(s.pressureLevel.word)|\(w.imminent)|\(w.etaSeconds.map { Int(log2(max(1, $0))) } ?? -1)|\(grower?.app ?? "")"
+            if key != lastKey || Date().timeIntervalSince(lastPrint) >= 30 {
                 let stamp = DateFormatter.localizedString(from: Date(), dateStyle: .none, timeStyle: .medium)
                 print("\(style.dim(stamp))  \(style.wall(w.percent, line))")
-                lastLine = line
+                lastKey = key
+                lastPrint = Date()
             }
             if let backend, policy.observe(status: w, pressure: s.pressureLevel, now: Date()) == .download {
                 print(style.bold("Autopilot: downloading RAM (\(w.reason))"))

@@ -42,7 +42,7 @@ up here with 93 GB free. [The kernel source, line by line →](docs/HOW_IT_WORKS
 | **Downloads RAM** | `ram download` sends macOS's own *critical* memory-pressure signal for 10 s (the root-only switch behind Apple's `memory_pressure -S`), then pulls the levers you allow, one at a time, each measured on its own. The receipt's headline is exactly the sum of the levers. |
 | **Levers** | Firefox GPU process restart · quit leftover servers your agents forgot · quit agent sessions you archived that are still running · resume apps macOS paused. Anything that ends a process needs your yes; nothing runs on its own. |
 | **Explains past crises** | Reads the reports macOS writes when it runs out of memory (`JetsamEvent`): who held the memory and how many background processes the kernel killed to cope. |
-| **Shows the wall** | "38% to the wall" from the limits the kernel actually checks, the time until you hit it, which app macOS will pause first, and a warning the moment swap is full and no new swapfile appears. |
+| **Shows the wall** | "38% to the wall" from the limits the kernel actually checks, the time until you hit it, which app is pushing you there right now ("growing: Claude Code +560 MB/min (swift-frontend)"), which app macOS will pause first, and a warning the moment swap is full and no new swapfile appears. |
 | **Agents** | Memory per Claude Code / Codex / Cursor / Gemini session with its real title, archived-but-running sessions, duplicate MCP servers, orphaned dev servers. |
 | **Firefox** | Turns on Firefox's low-memory tab unloader (shipped **off** outside Nightly: `browser.lowMemoryResponseMask = 0`). |
 | **Autopilot** | When you're heading for the wall, it downloads RAM before macOS starts pausing apps. |
@@ -93,7 +93,7 @@ ram download --dry-run      the same measurement without the signal: your Mac's 
 ram agents                  agent sessions, duplicate servers, leftovers
 ram resume                  resume apps macOS paused at the wall
 ram firefox unloader on     let Firefox unload idle tabs under memory pressure
-ram watch --autopilot       download automatically when the wall is near
+ram watch [--autopilot]     live distance to the wall and who is growing; --autopilot downloads before the wall
 ram bench real              relief vs control runs with Welch's t-test
 ```
 

@@ -32,6 +32,12 @@ free. Creating `swapfile11` failed once (a transient error), and that alone was 
 the current rate, and warns the moment swap is full and no new swapfile has appeared for 15 s.
 That is the exact state that precedes the panel.
 
+**"Paused" is not as paused as it sounds.** The kernel suspends only the app's main process. On the
+author's Mac (2026-10-20, 07:00, on battery) the paused ChatGPT app's Codex helpers kept running
+at about 4 cores, and the Discord and Opera renderers at about 1 core each, for over two hours
+until someone clicked Resume (load average 10.3 on a 10-core machine). `ram doctor` reports this
+("ChatGPT is paused, but its helpers are using 4.0 cores").
+
 It can also tell you **which app macOS will pause first**. Each process's pause registration is
 visible to any user (the `PROC_FLAG_PC_SUSP` flag), and the kernel picks the biggest. And it
 finds processes macOS paused **and never resumed**. On the author's Mac, Raycast's web-networking

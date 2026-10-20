@@ -23,7 +23,7 @@ frames, r = rec["frames"], rec["receipt"]
 
 W, LH, PAD = 760, 20, 18
 lines_static = []  # (y, text, cls)
-type_cmd = "ram download"
+type_cmd = rec.get("command", "ram download")
 t_cmd = 0.9                      # typing finishes
 t0 = t_cmd + 0.4                 # first progress frame
 y = PAD + 30
@@ -36,19 +36,34 @@ for i, f in enumerate(frames):
     start = t0 + f["t"] / speed
     end = t0 + (frames[i + 1]["t"] / speed if i + 1 < len(frames) else f["t"] / speed + 0.6)
     label = {"baseline": "Measuring baseline", "holding": "Downloading RAM", "settling": "Downloading RAM", "done": "Downloaded RAM"}[f["phase"]]
+    if f.get("lever"):
+        label = f["lever"] + "…"
     frac = f["elapsed"] / f["total"] if f["total"] else 1
     amount = "" if f["phase"] == "baseline" else f"  {gib(max(0, f['reclaimed']))}"
-    rate = f"  {gib(int(f['rate']))}/s" if f["phase"] in ("holding", "settling") else ""
+    rate = f"  {gib(int(f['rate']))}/s" if f["phase"] in ("holding", "settling") and not f.get("lever") else ""
     left = max(0, f["total"] - f["elapsed"])
     prog.append((start, end, f"{label:<18} {bar(frac)}{amount}{rate}  {round(left)}s left"))
+speed_note = f'<text class="t dim" x="{W - PAD}" y="{PAD + 12}" text-anchor="end">{speed:g}x speed</text>' if speed != 1 else ""
 
 t_done = prog[-1][1] if prog else t0
 apps = [a for a in r["apps"] if a["before"] - a["after"] > 0][:6]
 mx = max([a["before"] - a["after"] for a in apps] or [1])
 receipt_lines = [(f"✓ Downloaded {gib(r['headlineBytes'])} of RAM in {round(r['durationS'])}s", "ok"), ("", "")]
-for a in apps:
-    d = a["before"] - a["after"]
-    receipt_lines.append((f"  {a['name'][:22]:<22} {('+' + gib(d)):>10}  {'█' * max(1, round(14 * d / mx))}", "app"))
+levers = r.get("levers") or []
+if len(levers) > 1:
+    # One line per lever, each measured on its own; the headline is their sum.
+    lmx = max([l["bytes"] for l in levers if l.get("bytes")] or [1])
+    for l in levers:
+        b = l.get("bytes")
+        amount = ("+" if (b or 0) >= 0 else "") + gib(b) if b is not None else "—"
+        bar = "█" * max(1, round(14 * b / lmx)) if b and b > 0 else ""
+        receipt_lines.append((f"  {l['title'][:30]:<30} {amount:>10}  {bar}", "app"))
+    if levers[0].get("detail"):
+        receipt_lines.append((f"    signal: {levers[0]['detail'][:70]}", "dim"))
+else:
+    for a in apps:
+        d = a["before"] - a["after"]
+        receipt_lines.append((f"  {a['name'][:22]:<22} {('+' + gib(d)):>10}  {'█' * max(1, round(14 * d / mx))}", "app"))
 sb, sa = r["systemBefore"], r["systemAfter"]
 receipt_lines.append(("", ""))
 receipt_lines.append((f"  Swap {gib(sb['swapUsed'])} → {gib(sa['swapUsed'])} · {r['machine']['chip']} · {r['machine']['memoryBytes'] // 1024**3} GB", "dim"))
@@ -91,6 +106,7 @@ svg = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" width="{
 <style>{''.join(css)}</style>
 <rect width="{W}" height="{H}" rx="10" fill="#0d1117"/>
 <circle cx="20" cy="16" r="5" fill="#ff5f57"/><circle cx="38" cy="16" r="5" fill="#febc2e"/><circle cx="56" cy="16" r="5" fill="#28c840"/>
+{speed_note}
 {''.join(body)}
 </svg>
 """

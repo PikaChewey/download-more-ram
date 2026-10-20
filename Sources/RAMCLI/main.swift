@@ -65,20 +65,21 @@ let usage = """
 /// Records the live progress of a download (for scripts/make-demo-svg.swift: the README demo is
 /// rendered from a real run, never typed).
 final class FrameRecorder: @unchecked Sendable {
-    struct Frame: Codable { var t: Double; var phase: String; var reclaimed: Int64; var rate: Double; var elapsed: Double; var total: Double }
-    struct Recording: Codable { var frames: [Frame]; var receipt: Receipt }
+    struct Frame: Codable { var t: Double; var phase: String; var reclaimed: Int64; var rate: Double; var elapsed: Double; var total: Double; var lever: String? }
+    struct Recording: Codable { var command: String; var frames: [Frame]; var receipt: Receipt }
     private let lock = NSLock()
     private var frames: [Frame] = []
     private let start = Date()
     func add(_ p: ReliefProgress) {
         lock.withLock {
             frames.append(Frame(t: Date().timeIntervalSince(start), phase: p.phase.rawValue, reclaimed: p.reclaimedSoFar,
-                                rate: p.rateBytesPerSec, elapsed: p.elapsed, total: p.total))
+                                rate: p.rateBytesPerSec, elapsed: p.elapsed, total: p.total, lever: p.lever?.title))
         }
     }
     func write(to url: URL, receipt: Receipt) throws {
         let e = JSONEncoder(); e.outputFormatting = [.prettyPrinted, .sortedKeys]; e.dateEncodingStrategy = .iso8601
-        try e.encode(Recording(frames: lock.withLock { frames }, receipt: receipt)).write(to: url, options: .atomic)
+        let command = "ram " + CommandLine.arguments.dropFirst().filter { $0 != "--record" && !$0.hasSuffix(".json") }.joined(separator: " ")
+        try e.encode(Recording(command: command, frames: lock.withLock { frames }, receipt: receipt)).write(to: url, options: .atomic)
     }
 }
 

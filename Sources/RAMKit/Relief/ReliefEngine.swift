@@ -32,6 +32,10 @@ public struct ReliefProgress: Sendable {
     public var reclaimedSoFar: Int64
     public var rateBytesPerSec: Double
     public var topApps: [AppDelta]
+    /// Set while a lever after the signal is running (phase stays `.settling`), so UIs can say
+    /// "Restarting Firefox's GPU process…". Results so far are in `leversDone`.
+    public var lever: LeverKind? = nil
+    public var leversDone: [LeverResult] = []
 }
 
 /// Runs one "download": baseline, kernel pressure signal, live measurement, receipt.
@@ -50,6 +54,8 @@ public actor ReliefEngine {
     public static let baselineSamples = 3
     public static let baselineIntervalMs = 1000
     public static let tickMs = 500
+    /// Rough time a lever takes (restart + settle), so the progress bar keeps moving while levers run.
+    public static let leverEstimateS: Double = 7
 
     public init(backend: any ReliefBackend, level: PressureLevel = .critical, holdMs: Int = 10_000,
                 settleMs: Int = 5_000, sampling: any Sampling = LiveSampling(),
@@ -69,7 +75,7 @@ public actor ReliefEngine {
     public func run(progress: @Sendable (ReliefProgress) -> Void = { _ in }) async throws -> Receipt {
         let started = sampling.now()
         let total = Double(Self.baselineSamples - 1) * Double(Self.baselineIntervalMs) / 1000
-            + Double(holdMs + settleMs) / 1000
+            + Double(holdMs + settleMs) / 1000 + Double(levers.count) * Self.leverEstimateS
 
         // 1. Baseline: drift and CPU decide which apps are too busy to judge.
         var baseline: [ProcessSnapshot] = []
@@ -129,9 +135,13 @@ public actor ReliefEngine {
         let leftovers = AgentClassifier.leftovers(afterSignal, cpuHistory: cpu, info: info, now: signalEnd)
         var wallNow: WallStatus? = nil
         if let s = try? sampling.systemSample() { var wm = WallModel(); wm.add(s); wallNow = wm.status() }
-        if !levers.isEmpty {
-            leverResults += try await LeverRunner(sampling: sampling, actions: actions)
-                .run(levers, sessions: sessions, leftovers: leftovers, wall: wallNow)
+        let runner = LeverRunner(sampling: sampling, actions: actions)
+        for kind in levers {
+            let soFar = leverResults.compactMap(\.bytes).reduce(0, +)
+            progress(ReliefProgress(phase: .settling, elapsed: sampling.now().timeIntervalSince(started), total: total,
+                                    reclaimedSoFar: soFar, rateBytesPerSec: 0, topApps: Array(m.apps.prefix(5)),
+                                    lever: kind, leversDone: leverResults))
+            leverResults += try await runner.run([kind], sessions: sessions, leftovers: leftovers, wall: wallNow)
         }
         let offers = LeverPlanner.offers(snapshot: afterSignal, sessions: sessions, leftovers: leftovers, wall: wallNow, now: signalEnd)
             .filter { !levers.contains($0.kind) }

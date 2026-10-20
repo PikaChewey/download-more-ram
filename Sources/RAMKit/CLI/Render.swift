@@ -127,6 +127,10 @@ public enum Render {
         case .settling: label = "Downloading RAM"
         case .done: label = "Downloaded RAM"
         }
+        if let lever = p.lever {
+            let done = p.leversDone.compactMap(\.bytes).reduce(0, +)
+            return "\(pad(lever.title + "…", 34)) \(style.green(bar))  " + style.bold(Format.bytes(max(0, done))) + "  \(Format.duration(left)) left"
+        }
         let amount = p.phase == .baseline ? "" : "  " + style.bold(Format.bytes(max(0, p.reclaimedSoFar)))
         let rate = p.phase == .holding || p.phase == .settling ? "  \(Format.bytes(Int64(p.rateBytesPerSec)))/s" : ""
         return "\(pad(label, 18)) \(style.green(bar))\(amount)\(rate)  \(Format.duration(left)) left"

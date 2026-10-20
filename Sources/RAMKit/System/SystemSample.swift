@@ -89,7 +89,7 @@ public enum SystemSampler {
         let page = vm.page_size
         let swap = Sysctl.swapUsage()
         let prefix = Sysctl.string("vm.swapfileprefix") ?? "/System/Volumes/VM/swapfile"
-        let (swapfiles, volumeFree) = swapfileInfo(prefix: prefix)
+        let (swapfiles, volumeFree) = swapfileInfo(prefix: prefix, swapTotal: swap?.total ?? 0)
 
         return SystemSample(
             timestamp: now,
@@ -123,6 +123,24 @@ public enum SystemSampler {
             compressorSegments: Sysctl.uint64("vm.compressor.segment.total") ?? 0,
             compressorSegmentsLimit: Sysctl.uint64("vm.compressor.segment.limit") ?? 0
         )
+    }
+
+    private static let cacheLock = NSLock()
+    nonisolated(unsafe) private static var cachedCount: (prefix: String, swapTotal: UInt64, count: Int)?
+
+    /// Swapfile count, re-listing the VM directory only when swap's total size changed (the menu bar
+    /// app samples every few seconds; the directory listing is the expensive part). Free space is
+    /// always fresh (one statfs).
+    static func swapfileInfo(prefix: String, swapTotal: UInt64) -> (count: Int, volumeFree: UInt64) {
+        let dir = URL(fileURLWithPath: prefix).deletingLastPathComponent().path
+        var fs = statfs()
+        let free: UInt64 = statfs(dir, &fs) == 0 ? UInt64(fs.f_bavail) * UInt64(fs.f_bsize) : 0
+        if let c = cacheLock.withLock({ cachedCount }), c.prefix == prefix, c.swapTotal == swapTotal {
+            return (c.count, free)
+        }
+        let count = swapfileInfo(prefix: prefix).count
+        cacheLock.withLock { cachedCount = (prefix, swapTotal, count) }
+        return (count, free)
     }
 
     /// Counts `<prefix><digits>` files (the swapfiles macOS creates on demand) and reports free

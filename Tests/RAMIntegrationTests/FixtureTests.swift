@@ -158,4 +158,30 @@ struct ReliefEndToEndTests {
         #expect(Sysctl.int("kern.memorystatus_vm_pressure_level") != 4 || (Sysctl.int("kern.memorystatus_level") ?? 100) < 35)
         #expect(!ReliefAvailability.interruptedHoldDetected)
     }
+
+    @Test func killingTheClientMidHoldStillRestoresNormal() throws {
+        let cli = Process()
+        cli.executableURL = URL(fileURLWithPath: Env.signedCLI!)
+        cli.arguments = ["download", "--hold", "6", "--json"]
+        cli.standardOutput = FileHandle.nullDevice
+        cli.standardError = FileHandle.nullDevice
+        try cli.run()
+        // Wait until the kernel reports the simulated critical level, then kill the client.
+        var sawCritical = false
+        for _ in 0..<80 {
+            if Sysctl.int("kern.memorystatus_vm_pressure_level") == 4 { sawCritical = true; break }
+            usleep(100_000)
+        }
+        kill(cli.processIdentifier, SIGKILL)
+        cli.waitUntilExit()
+        #expect(sawCritical, "never saw the simulated critical level")
+        // The helper finishes the hold on its own and restores normal.
+        var restored = false
+        for _ in 0..<150 {
+            if !ReliefAvailability.interruptedHoldDetected && Sysctl.int("kern.memorystatus_vm_pressure_level") != 4 { restored = true; break }
+            usleep(100_000)
+        }
+        #expect(restored, "pressure still reads critical 15 s after the client died")
+    }
 }
+

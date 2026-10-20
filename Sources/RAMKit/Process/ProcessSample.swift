@@ -160,6 +160,13 @@ public enum ProcessSampler {
         ))
     }
 
+    /// Interrupt + package-idle wakeups so far (for idle-cost measurement).
+    public static func wakeups(pid: Int32) -> UInt64? {
+        var ru = dm_rusage()
+        guard dm_proc_rusage(pid, &ru) == 0 else { return nil }
+        return ru.interrupt_wkups &+ ru.pkg_idle_wkups
+    }
+
     /// The argv of a same-user process (others fail).
     public static func argv(pid: Int32) -> [String]? {
         var raw: UnsafeMutablePointer<CChar>?

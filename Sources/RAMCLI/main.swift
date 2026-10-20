@@ -363,6 +363,28 @@ case "bench":
         fail("\(error)", code: 5)
     }
 
+case "measure":
+    // Dev tool: average CPU, footprint and wakeups of one process (used by scripts/measure-app.sh).
+    guard let pidText = args.dropFirst().first, let pid = Int32(pidText) else { fail("usage: ram measure <pid> [--seconds N]", code: 2) }
+    let seconds = Double(value("--seconds") ?? "60") ?? 60
+    func read() -> (cpu: UInt64, fp: UInt64, wakes: UInt64)? {
+        guard let r = ProcessSampler.record(pid: pid) else { return nil }
+        return (r.cpuTimeNs, r.footprint, ProcessSampler.wakeups(pid: pid) ?? 0)
+    }
+    guard let a = read() else { fail("No readable process \(pid)", code: 1) }
+    let t0 = Date()
+    var maxFP = a.fp
+    while Date().timeIntervalSince(t0) < seconds {
+        usleep(1_000_000)
+        if let x = read() { maxFP = max(maxFP, x.fp) }
+    }
+    guard let b = read() else { fail("Process \(pid) exited", code: 1) }
+    let dt = Date().timeIntervalSince(t0)
+    struct Measure: Encodable { var pid: Int32; var seconds: Double; var idle_cpu_pct: Double; var footprint_mb: Double; var max_footprint_mb: Double; var wakeups_per_s: Double }
+    printJSON(Measure(pid: pid, seconds: dt, idle_cpu_pct: Double(b.cpu - a.cpu) / 1e9 / dt * 100,
+                      footprint_mb: Double(b.fp) / 1_048_576, max_footprint_mb: Double(maxFP) / 1_048_576,
+                      wakeups_per_s: Double(b.wakes - a.wakes) / dt))
+
 case "version", "--version", "-v":
     print("ram \(version)")
 

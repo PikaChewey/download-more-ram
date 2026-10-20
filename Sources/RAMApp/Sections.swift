@@ -2,226 +2,272 @@ import AppKit
 import RAMKit
 import SwiftUI
 
-// MARK: Where your RAM is
+// MARK: Also available (levers)
 
-struct AppsSection: View {
+/// One row per lever the planner found, with its measured estimate, what it does, a `Do it` that
+/// runs a download with that lever, and a remembered `Always` toggle. Consent levers start off.
+struct LeversBlock: View {
     @ObservedObject var model: AppModel
 
     var body: some View {
-        let report = model.report
-        if !report.rows.isEmpty {
-            SectionHeader(title: "Where your RAM is", detail: "\(Format.bytes(report.totalFootprint)) · \(report.rows.count) apps")
-            let maxBytes = Double(report.rows.first?.footprint ?? 1)
-            ForEach(model.visibleRows) { row in
-                AppRowView(model: model, row: row, fraction: Double(row.footprint) / max(1, maxBytes))
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Also available").font(Theme.title).foregroundStyle(Theme.ink)
+            ForEach(model.offers, id: \.kind) { offer in
+                LeverRow(model: model, offer: offer)
             }
-            if report.rows.count > 8 {
-                Button(model.showAllApps ? "Show the top 8" : "All \(report.rows.count) apps") { model.showAllApps.toggle() }
-                    .buttonStyle(QuietButtonStyle())
-                    .padding(.horizontal, Theme.gutter).padding(.top, 4).padding(.bottom, 2)
+        }
+        .padding(.horizontal, Theme.gutter)
+        .padding(.vertical, 12)
+    }
+}
+
+struct LeverRow: View {
+    @ObservedObject var model: AppModel
+    var offer: LeverOffer
+    @State private var blink = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(offer.kind.title).font(Theme.body).foregroundStyle(Theme.ink).lineLimit(1)
+                Spacer(minLength: 8)
+                if let bytes = offer.estimateBytes {
+                    Text("~" + Format.bytes(bytes)).font(Theme.bodyNumber).foregroundStyle(Theme.ink2)
+                }
+            }
+            HStack(alignment: .center, spacing: 8) {
+                Text(offer.reason).font(Theme.small).foregroundStyle(Theme.ink2)
+                    .lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 8)
+                Toggle("Always", isOn: Binding(get: { model.isAlways(offer.kind) }, set: { model.setAlways(offer.kind, $0) }))
+                    .toggleStyle(MonoToggleStyle())
+                Button(blink ? " " : "Do it") {
+                    Blink.run($blink) { model.download(trigger: .user, extra: [offer.kind]) }
+                }
+                .buttonStyle(QuietButtonStyle(prominent: !blink))
+                .disabled(!model.canDownload || model.downloading)
+                .frame(minWidth: 44)
             }
         }
     }
 }
 
-struct AppRowView: View {
+// MARK: Where your RAM is
+
+struct WhereYourRAMIs: View {
+    @ObservedObject var model: AppModel
+
+    var body: some View {
+        let r = model.report
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text("Where your RAM is").font(Theme.title).foregroundStyle(Theme.ink)
+                Spacer(minLength: 8)
+                Text(Format.bytes(r.totalFootprint)).font(Theme.smallNumber).foregroundStyle(Theme.ink2).lineLimit(1)
+                if r.rows.count > 5 {
+                    Button(model.showAll ? "Top 5" : "All \(r.rows.count)") { model.showAll.toggle() }
+                        .buttonStyle(TextButtonStyle())
+                }
+            }
+            .padding(.horizontal, Theme.gutter)
+            .padding(.top, 12)
+            .padding(.bottom, 6)
+            if model.showAll {
+                ScrollView {
+                    rows
+                }
+                .frame(maxHeight: Theme.listMaxHeight)
+                .fixedSize(horizontal: false, vertical: true)
+            } else {
+                rows
+            }
+        }
+        .padding(.bottom, 8)
+    }
+
+    private var rows: some View {
+        let r = model.report
+        let maxBytes = Double(r.rows.first?.footprint ?? 1)
+        return VStack(spacing: 0) {
+            ForEach(model.visibleRows) { row in
+                RowView(model: model, row: row, fraction: Double(row.footprint) / max(1, maxBytes))
+            }
+            ForEach(r.duplicates.prefix(2)) { d in
+                DuplicateRow(duplicate: d)
+            }
+        }
+    }
+
+}
+
+/// Icon + title + size (+ "archived"); click to expand the processes behind it, merged by name.
+struct RowView: View {
     @ObservedObject var model: AppModel
     var row: AppRow
     var fraction: Double
 
     var body: some View {
         let open = model.expanded.contains(row.id)
-        VStack(alignment: .leading, spacing: 3) {
+        VStack(alignment: .leading, spacing: 0) {
             Button {
                 if open { model.expanded.remove(row.id) } else { model.expanded.insert(row.id) }
             } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: open ? "chevron.down" : "chevron.right")
-                        .font(.system(size: 9, weight: .semibold)).foregroundStyle(Theme.tertiary).frame(width: 10)
-                    Text(row.name).font(Theme.body.weight(.medium)).lineLimit(1)
-                    if row.sessionCount > 0 {
-                        Text("\(row.sessionCount) session\(row.sessionCount == 1 ? "" : "s")").font(Theme.small).foregroundStyle(Theme.secondary)
+                HStack(spacing: 8) {
+                    RowIcon(path: row.iconPath, session: row.kind == .session)
+                    VStack(alignment: .leading, spacing: 1) {
+                        HStack(spacing: 6) {
+                            Text(row.name).font(Theme.bodyMedium).foregroundStyle(Theme.ink)
+                                .lineLimit(1).truncationMode(.middle)
+                            if row.archived { Tag(text: "archived") }
+                        }
+                        if let detail = row.detail {
+                            Text(detail).font(Theme.small).foregroundStyle(Theme.ink3).lineLimit(1)
+                        }
                     }
-                    Spacer(minLength: 4)
-                    Text(Format.bytes(row.footprint)).font(Theme.mono)
-                    Text("\(row.processCount)").font(Theme.mono).foregroundStyle(Theme.tertiary).frame(minWidth: 22, alignment: .trailing)
+                    Spacer(minLength: 8)
+                    Text(Format.bytes(row.footprint)).font(Theme.bodyNumber).foregroundStyle(Theme.ink)
                 }
+                .padding(.horizontal, Theme.gutter)
+                .padding(.vertical, 6)
+                .background(open ? Theme.surface : Color.clear)
             }
             .buttonStyle(BareButtonStyle())
-            Meter(fraction: fraction, height: 2).padding(.leading, 16).padding(.trailing, 26)
+            Bar(fraction: fraction, height: 2, fill: Theme.ink3)
+                .padding(.leading, Theme.gutter + 24)
+                .padding(.trailing, Theme.gutter)
             if open {
-                ForEach(row.members) { m in
-                    HStack(spacing: 6) {
-                        Text(m.name).font(Theme.small).lineLimit(1).truncationMode(.middle)
-                        Text(m.detail).font(Theme.mono).foregroundStyle(Theme.tertiary)
-                        Spacer(minLength: 4)
-                        Text(Format.bytes(m.footprint)).font(Theme.mono).foregroundStyle(Theme.secondary)
-                    }
-                    .padding(.leading, 16).padding(.trailing, 26).padding(.top, 2)
-                }
-            }
-        }
-        .padding(.horizontal, Theme.gutter).padding(.vertical, 5)
-    }
-}
-
-// MARK: AI agents
-
-struct AgentsSection: View {
-    @ObservedObject var model: AppModel
-
-    var body: some View {
-        let sessions = model.report.sessions
-        if !sessions.isEmpty {
-            let total = sessions.reduce(UInt64(0)) { $0 + $1.footprint }
-            SectionHeader(title: "AI agents", detail: "\(sessions.count) session\(sessions.count == 1 ? "" : "s") · \(Format.bytes(total))")
-            ForEach(sessions) { s in
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: 6) {
-                        Text(s.tool.displayName).font(Theme.body.weight(.medium))
-                        Text(s.label).font(Theme.body).foregroundStyle(Theme.secondary).lineLimit(1).truncationMode(.middle)
-                        Spacer(minLength: 4)
-                        Text(Format.bytes(s.footprint)).font(Theme.mono)
-                    }
-                    Text(detail(s)).font(Theme.small).foregroundStyle(Theme.secondary).lineLimit(1)
-                }
-                .padding(.horizontal, Theme.gutter).padding(.vertical, 4)
-            }
-        }
-    }
-
-    private func detail(_ s: AgentSession) -> String {
-        var parts: [String] = []
-        if let host = s.host { parts.append("in \(host)") }
-        if !s.topChildren.isEmpty { parts.append(s.topChildren) }
-        if let last = s.lastActive {
-            parts.append("last active \(Format.duration(max(0, model.report.timestamp.timeIntervalSince(last)))) ago")
-        } else if let cpu = s.cpuFraction {
-            parts.append(cpu > CPUHistory.activeFraction ? "working" : "quiet")
-        }
-        parts.append("up \(Format.duration(s.ageS))")
-        return parts.joined(separator: " · ")
-    }
-}
-
-// MARK: Leftovers
-
-struct LeftoversSection: View {
-    @ObservedObject var model: AppModel
-
-    var body: some View {
-        let leftovers = model.report.leftovers
-        if !leftovers.isEmpty {
-            let total = leftovers.reduce(UInt64(0)) { $0 + $1.record.footprint }
-            SectionHeader(title: "Leftovers", detail: "\(leftovers.count) · \(Format.bytes(total))")
-            ForEach(leftovers) { l in
-                HStack(alignment: .top, spacing: 8) {
-                    VStack(alignment: .leading, spacing: 2) {
+                VStack(spacing: 4) {
+                    ForEach(row.members) { m in
                         HStack(spacing: 6) {
-                            Text(l.record.name).font(Theme.body.weight(.medium)).lineLimit(1)
-                            Text("pid \(l.record.pid)").font(Theme.mono).foregroundStyle(Theme.tertiary)
-                        }
-                        Text(l.reason).font(Theme.small).foregroundStyle(Theme.secondary).fixedSize(horizontal: false, vertical: true)
-                    }
-                    Spacer(minLength: 4)
-                    VStack(alignment: .trailing, spacing: 4) {
-                        Text(Format.bytes(l.record.footprint)).font(Theme.mono)
-                        if model.forceAttempted.contains(l.id) {
-                            Text("killed").font(Theme.small).foregroundStyle(Theme.secondary)
-                        } else if model.offersForce(l) {
-                            HStack(spacing: 6) {
-                                Text("still running").font(Theme.small).foregroundStyle(Theme.secondary)
-                                Button("Force quit") { model.quit(l, force: true) }.buttonStyle(QuietButtonStyle(prominent: true))
-                            }
-                        } else {
-                            Button("Quit") { model.quit(l, force: false) }.buttonStyle(QuietButtonStyle())
+                            Text(m.name).font(Theme.small).foregroundStyle(Theme.ink2).lineLimit(1).truncationMode(.middle)
+                            if m.count > 1 { Text("×\(m.count)").font(Theme.smallNumber).foregroundStyle(Theme.ink3) }
+                            Spacer(minLength: 8)
+                            Text(Format.bytes(m.footprint)).font(Theme.smallNumber).foregroundStyle(Theme.ink2)
                         }
                     }
                 }
-                .padding(.horizontal, Theme.gutter).padding(.vertical, 5)
+                .padding(.leading, Theme.gutter + 24)
+                .padding(.trailing, Theme.gutter)
+                .padding(.top, 6)
+                .padding(.bottom, 4)
             }
+        }
+        .padding(.bottom, 2)
+    }
+}
+
+struct RowIcon: View {
+    var path: String?
+    var session: Bool
+
+    var body: some View {
+        if let image = IconCache.icon(for: path) {
+            Image(nsImage: image).resizable().frame(width: 16, height: 16)
+        } else {
+            Image(systemName: session ? "terminal" : "app")
+                .font(.system(size: 12, weight: .regular))
+                .foregroundStyle(Theme.ink3)
+                .frame(width: 16, height: 16)
         }
     }
 }
 
-// MARK: Firefox (spec 6: the two levers that really exist)
+/// "16 copies of rea mcp · 3.15 GB", one per agent session. Quiet: no action (quitting them would
+/// break those sessions).
+struct DuplicateRow: View {
+    var duplicate: DuplicateServer
 
-struct FirefoxSection: View {
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "square.on.square")
+                .font(.system(size: 11, weight: .regular)).foregroundStyle(Theme.ink3).frame(width: 16, height: 16)
+            VStack(alignment: .leading, spacing: 1) {
+                Text("\(duplicate.count) copies of \(duplicate.command)").font(Theme.body).foregroundStyle(Theme.ink2).lineLimit(1)
+                Text("one per agent session").font(Theme.small).foregroundStyle(Theme.ink3)
+            }
+            Spacer(minLength: 8)
+            Text(Format.bytes(duplicate.bytes)).font(Theme.bodyNumber).foregroundStyle(Theme.ink2)
+        }
+        .padding(.horizontal, Theme.gutter)
+        .padding(.vertical, 6)
+    }
+}
+
+// MARK: Footer
+
+struct FooterView: View {
     @ObservedObject var model: AppModel
 
     var body: some View {
-        let ff = model.report.firefox
-        if ff.running {
-            SectionHeader(title: "Firefox")
-            let armedUnloader = model.isArmed("firefox-unloader")
-            VStack(alignment: .leading, spacing: 5) {
-                HStack(spacing: 6) {
-                    Text("Unloads tabs on low memory: \(ff.unloaderOn ? "on" : "off")").font(Theme.body)
-                    Spacer(minLength: 4)
-                    if ff.unloaderOn {
-                        Button("Undo") { model.setFirefoxUnloader(false) }.buttonStyle(QuietButtonStyle())
-                    } else if armedUnloader {
-                        Button("Cancel") { model.cancelConfirm() }.buttonStyle(QuietButtonStyle())
-                        Button("Turn on") { model.setFirefoxUnloader(true) }.buttonStyle(QuietButtonStyle(prominent: true))
-                    } else {
-                        Button("Turn on") { model.arm("firefox-unloader") }.buttonStyle(QuietButtonStyle())
-                    }
-                }
-                if armedUnloader {
-                    Text("Writes one line to the profile's user.js (browser.lowMemoryResponseMask = 3). Applies when Firefox next starts; Firefox then unloads one tab idle for 10 min per critical signal. Undo removes the line.")
-                        .font(Theme.small).foregroundStyle(Theme.secondary).fixedSize(horizontal: false, vertical: true)
-                }
+        VStack(alignment: .leading, spacing: 8) {
+            if let message = model.message {
+                Text(message).font(Theme.small).foregroundStyle(Theme.ink2).fixedSize(horizontal: false, vertical: true)
             }
-            .padding(.horizontal, Theme.gutter).padding(.vertical, 5)
-            if let gpu = ff.gpu {
-                let armedGPU = model.isArmed("firefox-gpu")
-                VStack(alignment: .leading, spacing: 5) {
-                    HStack(spacing: 6) {
-                        Text("GPU process").font(Theme.body)
-                        Text(Format.bytes(gpu.footprint)).font(Theme.mono)
-                        Spacer(minLength: 4)
-                        if armedGPU {
-                            Button("Cancel") { model.cancelConfirm() }.buttonStyle(QuietButtonStyle())
-                            Button("Restart") { model.restartFirefoxGPU() }.buttonStyle(QuietButtonStyle(prominent: true))
-                        } else {
-                            Button("Restart") { model.arm("firefox-gpu") }.buttonStyle(QuietButtonStyle())
-                        }
-                    }
-                    if armedGPU {
-                        Text("Quits Firefox GPU Helper; Firefox relaunches it on its own. WebGL and canvas content resets and windows repaint.")
-                            .font(Theme.small).foregroundStyle(Theme.secondary).fixedSize(horizontal: false, vertical: true)
-                    }
-                }
-                .padding(.horizontal, Theme.gutter).padding(.vertical, 5)
+            HStack(spacing: 12) {
+                Toggle(isOn: Binding(get: { model.autopilotOn }, set: { model.setAutopilot($0) })) { Text("Autopilot") }
+                    .toggleStyle(MonoToggleStyle())
+                Spacer()
+                HelperDot(state: model.helperState)
+                MoreMenu(model: model)
             }
+        }
+        .padding(.horizontal, Theme.gutter)
+        .padding(.vertical, 10)
+    }
+}
+
+/// Filled dot: the helper answers. Hollow: it is missing or silent.
+struct HelperDot: View {
+    var state: AppModel.HelperState
+
+    var body: some View {
+        HStack(spacing: 5) {
+            Circle()
+                .strokeBorder(Theme.ink2, lineWidth: state == .ok ? 3.5 : 1)
+                .frame(width: 7, height: 7)
+            Text(label).font(Theme.small).foregroundStyle(Theme.ink2)
+        }
+        .help(help)
+    }
+
+    private var label: String {
+        switch state {
+        case .checking: "Helper"
+        case .ok: "Helper"
+        case .missing: "No helper"
+        case .notAnswering: "Helper silent"
+        }
+    }
+
+    private var help: String {
+        switch state {
+        case .checking: "Checking the helper"
+        case .ok: "The root helper that sends the memory-pressure signal is installed and answering"
+        case .missing: "Install the helper to download (one administrator prompt)"
+        case .notAnswering: "The helper is installed but not answering: sudo ram helper install"
         }
     }
 }
 
-// MARK: Growing (spec 5.8)
-
-struct GrowingSection: View {
+/// "…": % in menu bar, launch at login, quit.
+struct MoreMenu: View {
     @ObservedObject var model: AppModel
 
     var body: some View {
-        let leaks = model.report.leaks
-        if !leaks.isEmpty {
-            SectionHeader(title: "Growing", detail: "\(leaks.count)")
-            ForEach(leaks) { l in
-                HStack(spacing: 6) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        HStack(spacing: 6) {
-                            Text(l.name).font(Theme.body.weight(.medium)).lineLimit(1)
-                            Text("pid \(l.key.pid)").font(Theme.mono).foregroundStyle(Theme.tertiary)
-                        }
-                        Text("growing \(Format.bytes(Int64(l.slopeBytesPerHour)))/h for \(Format.duration(l.windowS)) · +\(Format.bytes(l.growthBytes)) so far")
-                            .font(Theme.small).foregroundStyle(Theme.secondary).lineLimit(1)
-                    }
-                    Spacer(minLength: 4)
-                    Text(Format.bytes(l.currentFootprint)).font(Theme.mono)
-                }
-                .padding(.horizontal, Theme.gutter).padding(.vertical, 5)
-            }
+        Menu {
+            Toggle("Show % in menu bar", isOn: $model.menuBarPercent)
+            Toggle("Launch at login", isOn: Binding(get: { model.launchAtLogin }, set: { model.setLaunchAtLogin($0) }))
+            Divider()
+            Button("Quit Download More RAM") { NSApp.terminate(nil) }
+        } label: {
+            Image(systemName: "ellipsis").font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.ink2)
+                .frame(width: 24, height: 20)
+                .contentShape(Rectangle())
         }
+        .menuStyle(.button)
+        .buttonStyle(.plain)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .accessibilityLabel("More")
     }
 }

@@ -2,83 +2,100 @@ import AppKit
 import RAMKit
 import SwiftUI
 
-/// The shareable receipt: a 1200x675 PNG with the headline, per-app bars, machine summary, swap
-/// before/after and the repo. No session labels, paths or project names (privacy).
+/// The shareable receipt: a 1200x675 PNG on the dark tokens with the payoff, one row per lever,
+/// the machine, swap and wall before → after, and the repo. No session titles, paths or project
+/// names ever appear (lever rows name apps and tools only).
 struct ShareCardView: View {
     var receipt: Receipt
 
     static let size = CGSize(width: 1200, height: 675)
-    private let background = Color(red: 0.067, green: 0.067, blue: 0.075)
-    private let dim = Color(white: 0.62)
-    private let faint = Color(white: 0.22)
-    private let accent = Color(red: 0.25, green: 0.56, blue: 1.0)
+    private let p = Theme.dark
 
     var body: some View {
-        let rows = ReceiptRows.merged(receipt.apps).filter { !$0.name.contains("/") && !$0.name.hasPrefix("~") }.prefix(5)
-        let maxDelta = rows.map { max(0, $0.delta) }.max() ?? 1
+        let r = receipt
+        let levers = (r.levers ?? []).prefix(4)
+        let rows = ReceiptRows.merged(r.apps).filter { !$0.name.contains("/") && !$0.name.hasPrefix("~") }.prefix(4)
         ZStack(alignment: .topLeading) {
-            background
+            p.canvas
             VStack(alignment: .leading, spacing: 0) {
                 HStack(alignment: .top, spacing: 24) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        if receipt.headlineBytes > 0 {
-                            Text("Downloaded").font(.system(size: 34, weight: .medium)).foregroundStyle(dim)
-                            HStack(alignment: .lastTextBaseline, spacing: 18) {
-                                Text(Format.bytes(receipt.headlineBytes)).font(.system(size: 104, weight: .bold).monospacedDigit()).foregroundStyle(.white)
-                                Text("of RAM").font(.system(size: 54, weight: .semibold)).foregroundStyle(dim)
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text("Download More RAM").font(.system(size: 26, weight: .medium)).foregroundStyle(p.ink2)
+                        if r.headlineBytes > 0 {
+                            HStack(alignment: .lastTextBaseline, spacing: 20) {
+                                Text(Format.bytes(r.headlineBytes)).font(.system(size: 116, weight: .semibold).monospacedDigit())
+                                    .foregroundStyle(p.accent).kerning(-3)
+                                Text("back").font(.system(size: 54, weight: .medium)).foregroundStyle(p.ink2)
                             }
                         } else {
-                            Text("Download More RAM").font(.system(size: 34, weight: .medium)).foregroundStyle(dim)
-                            Text("Nothing came back this time").font(.system(size: 72, weight: .bold)).foregroundStyle(.white)
-                                .lineLimit(1).minimumScaleFactor(0.7)
+                            Text("Nothing came back this time").font(.system(size: 64, weight: .semibold)).foregroundStyle(p.ink)
+                                .lineLimit(1).minimumScaleFactor(0.7).padding(.top, 18)
                         }
                     }
                     Spacer(minLength: 0)
-                    DIMMMark(fill: 1, arrow: true).frame(width: 200, height: 150).padding(.top, 6)
+                    DIMMMark(fill: 1, arrow: true, color: p.ink).frame(width: 190, height: 140).padding(.top, 8)
                 }
-                Spacer(minLength: 24)
+                Spacer(minLength: 16)
                 VStack(alignment: .leading, spacing: 14) {
-                    ForEach(rows) { row in
-                        HStack(spacing: 24) {
-                            Text(row.name).font(.system(size: 30, weight: .medium)).foregroundStyle(.white)
-                                .lineLimit(1).frame(width: 330, alignment: .leading)
-                            ZStack(alignment: .leading) {
-                                RoundedRectangle(cornerRadius: 4).fill(faint).frame(height: 18)
-                                if row.delta > 0 {
-                                    RoundedRectangle(cornerRadius: 4).fill(accent)
-                                        .frame(width: max(8, 500 * Double(row.delta) / Double(max(1, maxDelta))), height: 18)
+                    if !levers.isEmpty {
+                        ForEach(levers, id: \.kind) { l in
+                            VStack(alignment: .leading, spacing: 2) {
+                                HStack(alignment: .firstTextBaseline, spacing: 24) {
+                                    Text(l.title).font(.system(size: 30, weight: .medium)).foregroundStyle(p.ink).lineLimit(1)
+                                    Spacer(minLength: 16)
+                                    Text(l.bytes.map { Format.bytes($0, signed: true) } ?? "—")
+                                        .font(.system(size: 30, weight: .medium, design: .monospaced).monospacedDigit())
+                                        .foregroundStyle((l.bytes ?? 0) > 0 ? p.accent : p.ink2)
+                                }
+                                if let detail = l.detail, !detail.isEmpty {
+                                    Text(detail).font(.system(size: 21)).foregroundStyle(p.ink2).lineLimit(1)
                                 }
                             }
-                            .frame(width: 500)
-                            Text(Format.bytes(row.delta, signed: true)).font(.system(size: 30, weight: .medium, design: .monospaced).monospacedDigit())
-                                .foregroundStyle(row.delta > 0 ? .white : dim).frame(maxWidth: .infinity, alignment: .trailing)
                         }
-                    }
-                    if rows.isEmpty {
-                        Text("No app changed its footprint during the window.").font(.system(size: 30)).foregroundStyle(dim)
+                    } else if !rows.isEmpty {
+                        let maxDelta = rows.map { max(0, $0.delta) }.max() ?? 1
+                        ForEach(rows) { row in
+                            HStack(spacing: 24) {
+                                Text(row.name).font(.system(size: 30, weight: .medium)).foregroundStyle(p.ink)
+                                    .lineLimit(1).frame(width: 330, alignment: .leading)
+                                ZStack(alignment: .leading) {
+                                    RoundedRectangle(cornerRadius: 4).fill(p.surface).frame(height: 14)
+                                    if row.delta > 0 {
+                                        RoundedRectangle(cornerRadius: 4).fill(p.accent)
+                                            .frame(width: max(8, 480 * Double(row.delta) / Double(max(1, maxDelta))), height: 14)
+                                    }
+                                }
+                                .frame(width: 480)
+                                Text(Format.bytes(row.delta, signed: true)).font(.system(size: 30, weight: .medium, design: .monospaced).monospacedDigit())
+                                    .foregroundStyle(row.delta > 0 ? p.accent : p.ink2).frame(maxWidth: .infinity, alignment: .trailing)
+                            }
+                        }
+                    } else {
+                        Text("No app changed its footprint during the window.").font(.system(size: 30)).foregroundStyle(p.ink2)
                     }
                 }
-                Spacer(minLength: 24)
+                Spacer(minLength: 16)
+                Rectangle().fill(p.hairline).frame(height: 1).padding(.bottom, 18)
                 VStack(alignment: .leading, spacing: 8) {
-                    HStack(spacing: 18) {
-                        Text("\(receipt.machine.summary) · \(receipt.machine.osVersion)").font(.system(size: 24, weight: .medium)).foregroundStyle(.white)
-                        Text("swap \(Format.bytes(receipt.systemBefore.swapUsed)) → \(Format.bytes(receipt.systemAfter.swapUsed))")
-                            .font(.system(size: 24, design: .monospaced).monospacedDigit()).foregroundStyle(dim)
-                        if let b = receipt.wallBefore, let a = receipt.wallAfter {
-                            Text("wall \(Format.percent(b)) → \(Format.percent(a))").font(.system(size: 24, design: .monospaced).monospacedDigit()).foregroundStyle(dim)
+                    HStack(spacing: 20) {
+                        Text("\(r.machine.summary) · \(r.machine.osVersion)").font(.system(size: 24, weight: .medium)).foregroundStyle(p.ink)
+                        Text("swap \(Format.bytes(r.systemBefore.swapUsed)) → \(Format.bytes(r.systemAfter.swapUsed))")
+                            .font(.system(size: 24, design: .monospaced).monospacedDigit()).foregroundStyle(p.ink2)
+                        if let b = r.wallBefore, let a = r.wallAfter {
+                            Text("wall \(Format.percent(b)) → \(Format.percent(a))").font(.system(size: 24, design: .monospaced).monospacedDigit()).foregroundStyle(p.ink2)
                         }
                         Spacer()
                     }
                     HStack {
-                        Text("macOS's own memory-pressure signal · measured with phys_footprint")
-                            .font(.system(size: 20)).foregroundStyle(dim).lineLimit(1)
+                        Text("macOS's own memory-pressure signal · phys_footprint, per app")
+                            .font(.system(size: 20)).foregroundStyle(p.ink3).lineLimit(1)
                         Spacer(minLength: 24)
-                        Text("github.com/PikaChewey/download-more-ram").font(.system(size: 20, weight: .medium)).foregroundStyle(dim)
+                        Text("github.com/PikaChewey/download-more-ram").font(.system(size: 20, weight: .medium)).foregroundStyle(p.ink2)
                             .lineLimit(1).fixedSize()
                     }
                 }
             }
-            .padding(.horizontal, 64).padding(.top, 54).padding(.bottom, 48)
+            .padding(.horizontal, 64).padding(.top, 50).padding(.bottom, 44)
         }
         .frame(width: Self.size.width, height: Self.size.height)
         .environment(\.colorScheme, .dark)
@@ -189,4 +206,31 @@ enum ShareCard {
     }
 
     static func dropCache() { cached = nil }
+
+    /// `DownloadMoreRAM --render-share <receipt.json|recording.json> <out.png>`: the card from a saved
+    /// receipt, or from the receipt inside a `ram download --record` file (docs/share-card.png is made
+    /// this way from the same real recording as the clip). Returns the exit code.
+    static func renderCLI(receiptPath: String, outPath: String) -> Int32 {
+        NSApplication.shared.setActivationPolicy(.prohibited)
+        do {
+            let url = URL(fileURLWithPath: receiptPath)
+            let receipt: Receipt
+            if let object = try JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any], object["frames"] != nil {
+                let decoder = JSONDecoder()
+                decoder.dateDecodingStrategy = .iso8601
+                receipt = try decoder.decode(ClipRenderer.Recording.self, from: Data(contentsOf: url)).receipt
+            } else {
+                receipt = try Receipt.load(url)
+            }
+            guard let data = pngData(receipt) else { throw Failure.render }
+            let out = URL(fileURLWithPath: outPath)
+            try FileManager.default.createDirectory(at: out.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try data.write(to: out, options: .atomic)
+            print("rendered: \(out.path) \(Int(ShareCardView.size.width))x\(Int(ShareCardView.size.height)) from \(receipt.id) (\(ReceiptRows.headline(receipt)))")
+            return 0
+        } catch {
+            FileHandle.standardError.write(Data("render-share failed: \(error)\n".utf8))
+            return 1
+        }
+    }
 }

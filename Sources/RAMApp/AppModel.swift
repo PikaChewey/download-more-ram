@@ -13,39 +13,40 @@ enum DownloadTrigger: Equatable {
     case user, autopilot
 }
 
-/// What the status item shows. Published only when it changes, so a closed panel costs nothing.
+/// What the status item shows. Emitted only when it changes, so a closed panel costs nothing.
 struct GlyphState: Equatable {
     var percent: Int
+    var atWall: Bool
     var downloading: Bool
+    /// The lit chip while a download runs (from the engine's progress, 2 Hz, never otherwise).
+    var frame: Int
     var text: String
 }
 
-/// One row of "Where your RAM is": an app grouped like the Force Quit dialog, or every session of
-/// one agent tool merged under its name (spec 5.3), with the largest members for the expanded state.
+/// One row of "Where your RAM is": an app grouped like the Force Quit dialog, or one agent session
+/// with its real title. Rows are apps and sessions, never pids (DESIGN.md principle 5).
 struct AppRow: Identifiable, Equatable, Sendable {
+    enum Kind: Equatable, Sendable { case app, session }
+
+    /// Processes of the row merged by name ("plugin-container ×6").
     struct Member: Identifiable, Equatable, Sendable {
         var id: String
         var name: String
+        var count: Int
         var footprint: UInt64
-        var detail: String
     }
 
     var id: String
+    var kind: Kind
     var name: String
+    /// "Claude Code · in Claude" for a session; nil for an app.
+    var detail: String?
+    var archived: Bool
     var footprint: UInt64
     var processCount: Int
-    /// Sessions merged into this row (0 for a plain app).
-    var sessionCount: Int
+    /// Bundle whose icon represents the row (the host app for a session).
+    var iconPath: String?
     var members: [Member]
-}
-
-struct FirefoxState: Equatable, Sendable {
-    var running: Bool
-    var profile: URL?
-    var unloaderOn: Bool
-    var gpu: ProcessRecord?
-
-    static let notRunning = FirefoxState(running: false, profile: nil, unloaderOn: false, gpu: nil)
 }
 
 /// Everything the panel shows from one process snapshot.
@@ -53,98 +54,236 @@ struct ProcessReport: Sendable {
     var timestamp: Date
     var rows: [AppRow]
     var totalFootprint: UInt64
-    var unreadableCount: Int
+    var appCount: Int
+    var sessionCount: Int
     var sessions: [AgentSession]
     var leftovers: [Leftover]
-    var leaks: [Leak]
+    var duplicates: [DuplicateServer]
+    var offers: [LeverOffer]
     var insights: WallInsights?
-    var firefox: FirefoxState
+    /// Apps macOS paused at the last wall and never resumed, and what their helpers burn meanwhile.
+    var pausedApps: [String]
+    var pausedCores: Double
 
-    static let empty = ProcessReport(timestamp: .distantPast, rows: [], totalFootprint: 0, unreadableCount: 0, sessions: [],
-                                     leftovers: [], leaks: [], insights: nil, firefox: .notRunning)
+    static let empty = ProcessReport(timestamp: .distantPast, rows: [], totalFootprint: 0, appCount: 0, sessionCount: 0,
+                                     sessions: [], leftovers: [], duplicates: [], offers: [], insights: nil,
+                                     pausedApps: [], pausedCores: 0)
 
     var isEmpty: Bool { timestamp == .distantPast }
 }
 
-/// Takes process snapshots off the main thread and keeps the histories that need every sample.
-actor ProcessAnalyzer {
-    static let leakSpacingS: TimeInterval = 30
+/// Per-process lookups the classifier repeats on every pass, cached for the life of the process:
+/// argv and the Claude session id never change, cwd rarely does, and a Claude desktop session file
+/// (about 1 MB of JSON each, 13 of them on the target) is only re-read when its modification date
+/// moves. Measured on the target: this turns a pass from ~29 ms of file reads and lookups into ~12 ms.
+final class CachedProcessInfo: ProcessInfoSource, @unchecked Sendable {
+    static let cwdTTL: TimeInterval = 600
+    static let transcriptTTL: TimeInterval = 60
+    static let indexTTL: TimeInterval = 600
 
-    private var cpu = CPUHistory()
-    private var leaks = LeakDetector()
-    private var lastLeakSample: Date?
+    private let lock = NSLock()
+    private let root: URL
+    private var alive: [Int32: UInt64] = [:]
+    private var argvs: [Int32: (start: UInt64, value: [String]?)] = [:]
+    private var cwds: [Int32: (start: UInt64, at: Date, value: String?)] = [:]
+    private var sessionIDs: [Int32: (start: UInt64, value: String?)] = [:]
+    private var transcripts: [String: (at: Date, value: Date?)] = [:]
+    private var files: [String: URL] = [:]
+    private var sessions: [String: (modified: Date, value: ClaudeDesktopSession?)] = [:]
+    private var desktop = ClaudeDesktopSessions()
+    private var indexBuilt = Date.distantPast
+    private var rebuiltThisPass = false
+    private var now = Date()
 
-    func analyze(system: SystemSample?, now: Date = Date()) -> ProcessReport {
-        let snap = ProcessSampler.snapshot(includePaths: true, now: now)
-        cpu.add(snap)
-        if lastLeakSample.map({ now.timeIntervalSince($0) >= Self.leakSpacingS }) ?? true {
-            leaks.add(snap)
-            lastLeakSample = now
-        }
-        let groups = AppGrouper.group(snap)
-        let sessions = AgentClassifier.sessions(snap, cpuHistory: cpu, now: now)
-        let leftovers = AgentClassifier.leftovers(snap, cpuHistory: cpu, now: now)
-        return ProcessReport(
-            timestamp: now, rows: Self.rows(groups, sessions: sessions), totalFootprint: snap.totalFootprint,
-            unreadableCount: snap.unreadableCount, sessions: sessions, leftovers: leftovers, leaks: leaks.leaks(now: now),
-            insights: system.map { WallInsights.from(snap, system: $0) }, firefox: Self.firefox(groups, snap))
+    init(root: URL = RealUser.home.appendingPathComponent("Library/Application Support/Claude/claude-code-sessions", isDirectory: true)) {
+        self.root = root
     }
 
-    /// Apps as grouped, agent sessions merged per tool (the Force Quit dialog lumps them the same way).
-    static func rows(_ groups: [AppGroup], sessions: [AgentSession]) -> [AppRow] {
-        let labels = Dictionary(sessions.map { ($0.id, $0.label) }, uniquingKeysWith: { a, _ in a })
-        var rows: [AppRow] = []
-        var agents: [String: AppRow] = [:]
-        var order: [String] = []
-        for g in groups {
-            if g.kind == .agentSession, let tool = g.agent {
-                let id = "agent-\(tool.rawValue)"
-                var row = agents[id] ?? AppRow(id: id, name: tool.displayName, footprint: 0, processCount: 0, sessionCount: 0, members: [])
-                if agents[id] == nil { order.append(id) }
-                row.footprint += g.footprint
-                row.processCount += g.processCount
-                row.sessionCount += 1
-                row.members.append(AppRow.Member(id: "session-\(g.id)", name: labels[g.id] ?? g.name, footprint: g.footprint,
-                                                 detail: "\(g.processCount) proc"))
-                agents[id] = row
-            } else {
-                let members = g.members.prefix(5).map {
-                    AppRow.Member(id: "pid-\($0.pid)", name: $0.name, footprint: $0.footprint, detail: "pid \($0.pid)")
+    /// Call once per snapshot before classifying: drops entries of processes that are gone.
+    func begin(_ snap: ProcessSnapshot, now: Date) {
+        lock.withLock {
+            self.now = now
+            alive = Dictionary(snap.records.map { ($0.pid, $0.startTime) }, uniquingKeysWith: { a, _ in a })
+            argvs = argvs.filter { alive[$0.key] == $0.value.start }
+            cwds = cwds.filter { alive[$0.key] == $0.value.start }
+            sessionIDs = sessionIDs.filter { alive[$0.key] == $0.value.start }
+            transcripts = transcripts.filter { now.timeIntervalSince($0.value.at) < Self.transcriptTTL * 10 }
+            rebuiltThisPass = false
+            if now.timeIntervalSince(indexBuilt) > Self.indexTTL { rebuildIndex() }
+        }
+    }
+
+    /// local_<id> -> file (the desktop app's two-level org/user layout), plus a fresh RAMKit reader.
+    private func rebuildIndex() {
+        var out: [String: URL] = [:]
+        let fm = FileManager.default
+        for org in (try? fm.contentsOfDirectory(at: root, includingPropertiesForKeys: nil)) ?? [] {
+            for user in (try? fm.contentsOfDirectory(at: org, includingPropertiesForKeys: nil)) ?? [] {
+                for file in (try? fm.contentsOfDirectory(at: user, includingPropertiesForKeys: nil)) ?? []
+                where file.pathExtension == "json" && file.lastPathComponent.hasPrefix("local_") {
+                    out[file.deletingPathExtension().lastPathComponent] = file
                 }
-                rows.append(AppRow(id: "app-\(g.id)", name: g.name, footprint: g.footprint, processCount: g.processCount,
-                                   sessionCount: 0, members: Array(members)))
             }
         }
-        for id in order {
-            guard var row = agents[id] else { continue }
-            row.members.sort { $0.footprint > $1.footprint }
-            row.members = Array(row.members.prefix(6))
-            rows.append(row)
+        files = out
+        desktop = ClaudeDesktopSessions(root: root)
+        indexBuilt = now
+        sessions = sessions.filter { out[$0.key] != nil }
+    }
+
+    func argv(pid: Int32) -> [String]? {
+        lock.lock(); defer { lock.unlock() }
+        guard let start = alive[pid] else { return ProcessSampler.argv(pid: pid) }
+        if let c = argvs[pid], c.start == start { return c.value }
+        let v = ProcessSampler.argv(pid: pid)
+        argvs[pid] = (start, v)
+        return v
+    }
+
+    func cwd(pid: Int32) -> String? {
+        lock.lock(); defer { lock.unlock() }
+        guard let start = alive[pid] else { return ProcessSampler.cwd(pid: pid) }
+        if let c = cwds[pid], c.start == start, now.timeIntervalSince(c.at) < Self.cwdTTL { return c.value }
+        let v = ProcessSampler.cwd(pid: pid)
+        cwds[pid] = (start, now, v)
+        return v
+    }
+
+    func transcriptActivity(sessionID: String) -> Date? {
+        lock.lock(); defer { lock.unlock() }
+        if let c = transcripts[sessionID], now.timeIntervalSince(c.at) < Self.transcriptTTL { return c.value }
+        let v = ClaudeTranscripts.lastActivity(sessionID: sessionID)
+        transcripts[sessionID] = (now, v)
+        return v
+    }
+
+    func desktopSession(pid: Int32) -> ClaudeDesktopSession? {
+        lock.lock(); defer { lock.unlock() }
+        let id: String?
+        if let start = alive[pid], let c = sessionIDs[pid], c.start == start {
+            id = c.value
+        } else {
+            id = ProcessSampler.env(pid: pid, name: ClaudeDesktopSessions.hostSessionVariable)
+            if let start = alive[pid] { sessionIDs[pid] = (start, id) }
+        }
+        guard let id, id.hasPrefix("local_"), !id.contains("/") else { return nil }
+        if files[id] == nil, !rebuiltThisPass {
+            // A session the app created after the index was built: rebuild once per pass.
+            rebuiltThisPass = true
+            rebuildIndex()
+        }
+        guard let url = files[id] else { return nil }
+        let modified = (try? FileManager.default.attributesOfItem(atPath: url.path)[.modificationDate] as? Date) ?? .distantPast
+        if let c = sessions[id], c.modified == modified { return c.value }
+        let v = desktop.session(id: id)
+        sessions[id] = (modified, v)
+        return v
+    }
+}
+
+/// Takes process snapshots off the main thread and keeps the CPU history that needs every sample.
+actor ProcessAnalyzer {
+    private var cpu = CPUHistory()
+    private let info = CachedProcessInfo()
+
+    func analyze(system: SystemSample?, wall: WallStatus?, reliefAvailable: Bool, now: Date = Date()) -> ProcessReport {
+        let snap = ProcessSampler.snapshot(includePaths: true, now: now)
+        cpu.add(snap)
+        info.begin(snap, now: now)
+        return Self.report(snap, cpu: cpu, info: info, system: system, wall: wall, reliefAvailable: reliefAvailable, now: now)
+    }
+
+    /// Everything derived from one snapshot (shared with the sample data behind `--render-ui`).
+    static func report(_ snap: ProcessSnapshot, cpu: CPUHistory, info: any ProcessInfoSource, system: SystemSample?,
+                       wall: WallStatus?, reliefAvailable: Bool, now: Date) -> ProcessReport {
+        let groups = AppGrouper.group(snap)
+        let sessions = AgentClassifier.sessions(snap, cpuHistory: cpu, info: info, now: now)
+        let leftovers = AgentClassifier.leftovers(snap, cpuHistory: cpu, info: info, now: now)
+        let duplicates = AgentClassifier.duplicateServers(sessions, info: info)
+        let offers = LeverPlanner.offers(snapshot: snap, sessions: sessions, leftovers: leftovers, wall: wall, now: now)
+        var insights: WallInsights?
+        var paused: [String] = []
+        var cores = 0.0
+        if let system {
+            let d = Diagnosis.make(system: system, wall: wall, snapshot: snap, sessions: sessions, leftovers: leftovers,
+                                   reliefAvailable: reliefAvailable, firefoxProfile: nil, cpu: cpu, duplicates: duplicates, now: now)
+            insights = d.insights
+            paused = d.insights.stillPausedApps
+            cores = d.spinningWhilePaused.reduce(0) { $0 + $1.cores }
+        }
+        let rows = Self.rows(groups, sessions: sessions, snapshot: snap)
+        return ProcessReport(timestamp: now, rows: rows, totalFootprint: snap.totalFootprint,
+                             appCount: rows.filter { $0.kind == .app }.count, sessionCount: sessions.count,
+                             sessions: sessions, leftovers: leftovers, duplicates: duplicates, offers: offers,
+                             insights: insights, pausedApps: paused, pausedCores: cores)
+    }
+
+    /// Sessions first (with their titles), then every other app group, largest first.
+    static func rows(_ groups: [AppGroup], sessions: [AgentSession], snapshot: ProcessSnapshot) -> [AppRow] {
+        let byPid = Dictionary(snapshot.records.map { ($0.pid, $0) }, uniquingKeysWith: { a, _ in a })
+        var rows: [AppRow] = []
+        var covered: Set<Int32> = []
+        for s in sessions {
+            covered.insert(s.id)
+            var detail = s.tool.displayName
+            if let host = s.host { detail += " · in \(host)" }
+            rows.append(AppRow(id: "session-\(s.id)", kind: .session, name: s.title ?? s.label, detail: detail,
+                               archived: s.archived, footprint: s.footprint, processCount: s.members.count,
+                               iconPath: hostBundle(of: s, byPid: byPid), members: merged(s.members.filter { $0.pid != s.id })))
+        }
+        for g in groups where !covered.contains(g.id) {
+            rows.append(AppRow(id: "app-\(g.id)", kind: .app, name: g.name, detail: nil, archived: false,
+                               footprint: g.footprint, processCount: g.processCount, iconPath: g.bundlePath,
+                               members: merged(g.members)))
         }
         return rows.sorted { $0.footprint != $1.footprint ? $0.footprint > $1.footprint : $0.id < $1.id }
     }
 
-    static func firefox(_ groups: [AppGroup], _ snap: ProcessSnapshot) -> FirefoxState {
-        let running = groups.contains { g in
-            g.kind == .app && (g.name.hasPrefix("Firefox") || (g.bundlePath.map { ($0 as NSString).lastPathComponent.hasPrefix("Firefox") } ?? false))
+    /// "plugin-container ×6  9.30 GB": same-named processes merged, largest first, five at most.
+    static func merged(_ records: [ProcessRecord]) -> [AppRow.Member] {
+        var totals: [String: (bytes: UInt64, count: Int)] = [:]
+        var order: [String] = []
+        for r in records {
+            if totals[r.name] == nil { order.append(r.name) }
+            totals[r.name, default: (0, 0)].bytes += r.footprint
+            totals[r.name]!.count += 1
         }
-        guard running else { return .notRunning }
-        let profile = FirefoxLevers.defaultProfile()
-        return FirefoxState(running: true, profile: profile,
-                            unloaderOn: profile.map { FirefoxLevers.isUnloaderOn(profile: $0) } ?? false,
-                            gpu: FirefoxLevers.gpuProcess(in: snap))
+        return order.map { AppRow.Member(id: $0, name: $0, count: totals[$0]!.count, footprint: totals[$0]!.bytes) }
+            .sorted { $0.footprint > $1.footprint }
+            .prefix(5)
+            .map { $0 }
+    }
+
+    /// The bundle of the app that hosts a session (Claude, Terminal, Cursor), for its icon.
+    static func hostBundle(of s: AgentSession, byPid: [Int32: ProcessRecord]) -> String? {
+        guard var current = byPid[s.id] else { return nil }
+        for _ in 0..<12 {
+            guard current.ppid > 1, let parent = byPid[current.ppid] else { return nil }
+            if let bundle = parent.path.flatMap(AppGrouper.outermostBundlePath),
+               AgentTool.detect(name: parent.name, path: parent.path) == nil {
+                return bundle
+            }
+            current = parent
+        }
+        return nil
     }
 }
 
-/// Main-actor state for the status item and the panel. Sampling (spec 9): the system every 2 s
-/// while the panel is open and every 5 s while it is closed; processes on every open tick and every
-/// 30 s (sixth closed tick) otherwise. While the panel is closed nothing is published to SwiftUI:
-/// the glyph goes through its own subject, and only when its state changes.
+/// Main-actor state for the status item and the panel.
+///
+/// Sampling: the system every 2 s while the panel is open; every 10 s while it is closed (5 s from
+/// 70% on, so autopilot and the imminent check stay prompt). Processes every 6 s while open, every
+/// 120 s while closed (30 s from 70% on), and at once when the panel opens. While the panel is
+/// closed nothing is published to SwiftUI: the glyph goes through its own subject, only on change.
 @MainActor
 final class AppModel: ObservableObject {
     nonisolated static let openIntervalS: TimeInterval = 2
-    nonisolated static let closedIntervalS: TimeInterval = 5
-    nonisolated static let closedProcessEveryTicks = 6
+    nonisolated static let closedIntervalS: TimeInterval = 10
+    nonisolated static let closedNearWallIntervalS: TimeInterval = 5
+    nonisolated static let openAnalysisS: TimeInterval = 6
+    nonisolated static let closedAnalysisS: TimeInterval = 120
+    nonisolated static let closedNearWallAnalysisS: TimeInterval = 30
+    nonisolated static let nearWallPercent = 70.0
     nonisolated static let holdMs = 10_000
     nonisolated static let settleMs = 5_000
 
@@ -159,17 +298,13 @@ final class AppModel: ObservableObject {
     @Published var message: String?
     @Published var shareNote: String?
     @Published var expanded: Set<String> = []
-    @Published var showAllApps = false
-    @Published var quitAttempted: Set<ProcessKey> = []
-    @Published var forceAttempted: Set<ProcessKey> = []
-    @Published var pendingConfirm: String?
+    @Published var showAll = false
     @Published var installing = false
     @Published var downloading = false
+    @Published var resuming = false
     @Published var interruptedHold = false
-    /// What the status item shows. Not @Published on purpose: a change here must not invalidate the
-    /// (possibly hidden) SwiftUI panel. Emits only when the state changes.
-    let glyphSubject = CurrentValueSubject<GlyphState, Never>(GlyphState(percent: 0, downloading: false, text: ""))
-    var glyph: GlyphState { glyphSubject.value }
+    /// Levers that run with every download (remembered per lever; consent levers start off).
+    @Published private(set) var alwaysLevers: Set<LeverKind>
     @Published var autopilotOn: Bool {
         didSet { defaults.set(autopilotOn, forKey: Keys.autopilot) }
     }
@@ -177,6 +312,11 @@ final class AppModel: ObservableObject {
         didSet { defaults.set(menuBarPercent, forKey: Keys.menuBarPercent); publishGlyph() }
     }
     @Published var launchAtLogin: Bool
+
+    /// What the status item shows. Not @Published on purpose: a change here must not invalidate the
+    /// (possibly hidden) SwiftUI panel. Emits only when the state changes.
+    let glyphSubject = CurrentValueSubject<GlyphState, Never>(GlyphState(percent: 0, atWall: false, downloading: false, frame: 0, text: ""))
+    var glyph: GlyphState { glyphSubject.value }
 
     private(set) var panelOpen = false
     let live: Bool
@@ -188,9 +328,10 @@ final class AppModel: ObservableObject {
     private var autopilot = AutopilotPolicy()
     private let analyzer = ProcessAnalyzer()
     private var timer: Timer?
-    private var ticks = 0
+    private var nearWall = false
     private var analyzing = false
     private var analyzeAgain = false
+    private var lastAnalysis = Date.distantPast
     private var pendingSystem: SystemSample?
     private var pendingWall: WallStatus?
     private var pendingReport: ProcessReport?
@@ -198,13 +339,13 @@ final class AppModel: ObservableObject {
     private var latestWall: WallStatus?
     private var receiptUnseen = false
     private var latestProgress: ReliefProgress?
+    private var downloadFrame = 0
     private var lastAvailabilityCheck: Date?
-    private var confirmReset: Task<Void, Never>?
-    private var refreshAfterAction: Task<Void, Never>?
 
     enum Keys {
         static let autopilot = "autopilot"
         static let menuBarPercent = "menuBarPercent"
+        static func always(_ kind: LeverKind) -> String { "lever.always.\(kind.rawValue)" }
     }
 
     init(live: Bool, defaults: UserDefaults = .standard, notifier: Notifier = Notifier(), loginItem: LoginItem = LoginItem()) {
@@ -215,6 +356,7 @@ final class AppModel: ObservableObject {
         autopilotOn = defaults.bool(forKey: Keys.autopilot)
         menuBarPercent = defaults.bool(forKey: Keys.menuBarPercent)
         launchAtLogin = live ? loginItem.isEnabled : false
+        alwaysLevers = Set(LeverKind.allCases.filter { $0 != .kernelSignal && defaults.bool(forKey: Keys.always($0)) })
     }
 
     // MARK: Loop
@@ -232,11 +374,18 @@ final class AppModel: ObservableObject {
         timer = nil
     }
 
-    /// One timer: 2 s while the panel is open, 5 s while it is closed, 25% tolerance so the
-    /// kernel can coalesce the wakeup.
+    private var sampleInterval: TimeInterval {
+        panelOpen ? Self.openIntervalS : (nearWall ? Self.closedNearWallIntervalS : Self.closedIntervalS)
+    }
+
+    private var analysisInterval: TimeInterval {
+        panelOpen ? Self.openAnalysisS : (nearWall ? Self.closedNearWallAnalysisS : Self.closedAnalysisS)
+    }
+
+    /// One timer, 25% tolerance so the kernel can coalesce the wakeup.
     private func schedule() {
         timer?.invalidate()
-        let interval = panelOpen ? Self.openIntervalS : Self.closedIntervalS
+        let interval = sampleInterval
         let t = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.tick() }
         }
@@ -257,18 +406,25 @@ final class AppModel: ObservableObject {
             pendingWall = status
         }
         publishGlyph()
-        ticks += 1
-        if panelOpen || ticks % Self.closedProcessEveryTicks == 0 { analyzeProcesses() }
+        let near = (status?.percent ?? 0) >= Self.nearWallPercent || (status?.imminent ?? false)
+        if near != nearWall {
+            nearWall = near
+            if live { schedule() }
+        }
+        if Date().timeIntervalSince(lastAnalysis) >= analysisInterval { analyzeProcesses() }
         runAutopilot(status: status, sample: s)
     }
 
-    private func analyzeProcesses() {
+    func analyzeProcesses() {
         guard !analyzing else { analyzeAgain = true; return }
         analyzing = true
+        lastAnalysis = Date()
         let sample = system ?? pendingSystem
+        let wallNow = latestWall
+        let relief = canDownload
         Task { [weak self] in
             guard let self else { return }
-            let r = await self.analyzer.analyze(system: sample)
+            let r = await self.analyzer.analyze(system: sample, wall: wallNow, reliefAvailable: relief)
             self.analyzing = false
             if self.panelOpen { self.report = r } else { self.pendingReport = r }
             if self.analyzeAgain {
@@ -284,7 +440,7 @@ final class AppModel: ObservableObject {
         guard open else {
             message = nil
             shareNote = nil
-            pendingConfirm = nil
+            showAll = false
             return
         }
         if let s = pendingSystem { system = s; pendingSystem = nil }
@@ -297,8 +453,8 @@ final class AppModel: ObservableObject {
             page = .main
         }
         if live {
-            // A fresh system sample now (the pending one can be 5 s old); an open tick also
-            // takes the process snapshot.
+            // A fresh system sample now (the pending one can be 10 s old) and a process pass unless one just ran.
+            if Date().timeIntervalSince(lastAnalysis) > 2 { lastAnalysis = .distantPast }
             tick()
             Task { await checkAvailability(force: false) }
         }
@@ -308,7 +464,8 @@ final class AppModel: ObservableObject {
 
     private func publishGlyph() {
         let pct = Int(latestWall?.percent.rounded() ?? 0)
-        let next = GlyphState(percent: pct, downloading: downloading, text: menuBarPercent && latestWall != nil ? "\(pct)%" : "")
+        let next = GlyphState(percent: pct, atWall: Theme.atWall(latestWall), downloading: downloading, frame: downloadFrame,
+                              text: menuBarPercent && latestWall != nil ? "\(pct)%" : "")
         if next != glyphSubject.value { glyphSubject.send(next) }
     }
 
@@ -328,11 +485,39 @@ final class AppModel: ObservableObject {
 
     var canDownload: Bool { availability?.backend() != nil }
 
+    enum HelperState: Equatable { case checking, ok, missing, notAnswering }
+
+    var helperState: HelperState {
+        switch availability {
+        case .none: .checking
+        case .root, .helper: .ok
+        case .unavailable(let reason): reason == ReliefError.notPermitted.description ? .missing : .notAnswering
+        }
+    }
+
+    // MARK: Levers
+
+    func setAlways(_ kind: LeverKind, _ on: Bool) {
+        if on { alwaysLevers.insert(kind) } else { alwaysLevers.remove(kind) }
+        defaults.set(on, forKey: Keys.always(kind))
+    }
+
+    func isAlways(_ kind: LeverKind) -> Bool { alwaysLevers.contains(kind) }
+
+    /// Offers the panel shows: what the planner found, minus nothing (an "Always" lever still shows
+    /// its row so the toggle can be turned off).
+    var offers: [LeverOffer] { report.offers }
+
     // MARK: Download
 
-    func download(trigger: DownloadTrigger) {
+    /// Runs the kernel signal plus the remembered levers plus `extra` (the "Do it" lever), in the
+    /// engine's fixed order; each lever is measured on its own.
+    func download(trigger: DownloadTrigger, extra: [LeverKind] = []) {
         guard !downloading, let backend = availability?.backend() else { return }
+        let wanted = alwaysLevers.union(extra)
+        let levers = LeverKind.allCases.filter { $0 != .kernelSignal && wanted.contains($0) }
         downloading = true
+        downloadFrame = 0
         progress = nil
         latestProgress = nil
         receipt = nil
@@ -344,7 +529,7 @@ final class AppModel: ObservableObject {
             var m = WallModel()
             m.add(s)
             return m.status()?.percent ?? 0
-        })
+        }, levers: levers)
         Task { [weak self] in
             guard let self else { return }
             do {
@@ -361,25 +546,30 @@ final class AppModel: ObservableObject {
 
     private func progressed(_ p: ReliefProgress) {
         latestProgress = p
+        downloadFrame = Int(p.elapsed * 2) % 4
+        publishGlyph()
         if panelOpen { progress = p }
     }
 
     private func finished(_ r: Receipt, trigger: DownloadTrigger) {
         downloading = false
+        downloadFrame = 0
         receipt = r
         receiptUnseen = true
         if panelOpen || trigger == .user { page = .receipt } else { page = .main }
         publishGlyph()
         if trigger == .autopilot {
             let top = r.apps.first { $0.delta > 0 }.map { " · \($0.name) gave back \(Format.bytes($0.delta))" } ?? ""
-            notifier.post(title: r.headlineBytes > 0 ? "Downloaded \(Format.bytes(r.headlineBytes)) of RAM" : "Nothing came back this time",
+            notifier.post(title: r.headlineBytes > 0 ? "\(Format.bytes(r.headlineBytes)) of RAM back" : "Nothing came back this time",
                           body: "Autopilot: wall \(Format.percent(r.wallBefore ?? 0)) → \(Format.percent(r.wallAfter ?? 0))\(top)")
         }
+        lastAnalysis = .distantPast
         analyzeProcesses()
     }
 
     private func failed(_ error: Error, trigger: DownloadTrigger) {
         downloading = false
+        downloadFrame = 0
         page = .main
         publishGlyph()
         let text = (error as? ReliefError)?.description ?? error.localizedDescription
@@ -395,7 +585,38 @@ final class AppModel: ObservableObject {
         receiptUnseen = false
     }
 
-    // MARK: Autopilot (spec 5.9)
+    // MARK: Paused apps
+
+    /// Resumes every process the kernel suspended at the wall, the way the Force Quit panel's
+    /// Resume button does, through the helper (or directly when running as root).
+    func resumePaused() {
+        guard !resuming else { return }
+        guard let availability, availability.backend() != nil else {
+            message = "Click Resume in the Force Quit panel (no helper installed)"
+            return
+        }
+        resuming = true
+        message = nil
+        let asRoot = availability == .root
+        Task { [weak self] in
+            let pids = await Task.detached { PausedApps.current().map(\.pid) }.value
+            var failed = 0
+            for pid in pids {
+                if asRoot {
+                    if case .failure = PausedApps.resume(pid: pid) { failed += 1 }
+                } else if (try? await HelperBackend().resumePaused(pid: pid)) == nil {
+                    failed += 1
+                }
+            }
+            guard let self else { return }
+            self.resuming = false
+            if failed > 0 { self.message = "\(failed) of \(pids.count) could not be resumed" }
+            self.lastAnalysis = .distantPast
+            self.analyzeProcesses()
+        }
+    }
+
+    // MARK: Autopilot
 
     private func runAutopilot(status: WallStatus?, sample: SystemSample) {
         guard autopilotOn, let status, !downloading, canDownload else { return }
@@ -433,7 +654,7 @@ final class AppModel: ObservableObject {
         guard !installing else { return }
         installing = true
         message = nil
-        // Let the panel paint "Installing…" before the administrator prompt blocks this thread.
+        // Let the panel paint "Installing helper…" before the administrator prompt blocks this thread.
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
             MainActor.assumeIsolated {
                 guard let self else { return }
@@ -441,12 +662,20 @@ final class AppModel: ObservableObject {
                 self.installing = false
                 switch result {
                 case .success:
-                    self.message = "Helper installed. Downloads run without a password from now on."
                     Task { await self.checkAvailability(force: true) }
                 case .failure(let failure):
                     self.message = failure.description
                 }
             }
+        }
+    }
+
+    /// Interrupted hold: the helper restores on its own; without it the user runs `sudo ram restore`.
+    func restoreHold() {
+        guard case .helper = availability else { return }
+        Task { [weak self] in
+            try? await HelperBackend().restore()
+            self?.interruptedHold = ReliefAvailability.interruptedHoldDetected
         }
     }
 
@@ -463,116 +692,51 @@ final class AppModel: ObservableObject {
         }
     }
 
-    // MARK: Two-click confirmation
-
-    func arm(_ id: String) {
-        pendingConfirm = id
-        confirmReset?.cancel()
-        confirmReset = Task { @MainActor [weak self] in
-            try? await Task.sleep(nanoseconds: 10_000_000_000)
-            if !Task.isCancelled, self?.pendingConfirm == id { self?.pendingConfirm = nil }
-        }
-    }
-
-    func cancelConfirm() {
-        pendingConfirm = nil
-        confirmReset?.cancel()
-    }
-
-    func isArmed(_ id: String) -> Bool { pendingConfirm == id }
-
-    // MARK: Leftovers (spec 5.4: SIGTERM on a click, SIGKILL only on a second explicit click)
-
-    func quit(_ leftover: Leftover, force: Bool) {
-        cancelConfirm()
-        let front = NSWorkspace.shared.frontmostApplication?.processIdentifier
-        switch SafeKill.terminate(leftover.record, escalate: force, frontmostPid: front) {
-        case .ok:
-            if force { forceAttempted.insert(leftover.id) } else { quitAttempted.insert(leftover.id) }
-            message = "Sent \(force ? "SIGKILL" : "SIGTERM") to \(leftover.record.name) (\(leftover.record.pid))."
-            refreshSoon()
-        case .refused(let why):
-            message = "\(leftover.record.name): \(why)."
-        }
-    }
-
-    /// Force is offered once a plain Quit was sent and the process is still in the list.
-    func offersForce(_ leftover: Leftover) -> Bool {
-        quitAttempted.contains(leftover.id) && !forceAttempted.contains(leftover.id)
-    }
-
-    private func refreshSoon() {
-        refreshAfterAction?.cancel()
-        refreshAfterAction = Task { @MainActor [weak self] in
-            try? await Task.sleep(nanoseconds: 1_500_000_000)
-            if !Task.isCancelled { self?.analyzeProcesses() }
-        }
-    }
-
-    // MARK: Firefox levers (spec 6)
-
-    func setFirefoxUnloader(_ on: Bool) {
-        cancelConfirm()
-        guard let profile = report.firefox.profile else {
-            message = "No default Firefox profile found in profiles.ini."
-            return
-        }
-        do {
-            if on {
-                try FirefoxLevers.enableUnloader(profile: profile)
-                message = "Added one line to \(profile.lastPathComponent)/user.js. Applies when Firefox next starts."
-            } else {
-                try FirefoxLevers.disableUnloader(profile: profile)
-                message = FirefoxLevers.isUnloaderOn(profile: profile)
-                    ? "Removed our line, but Firefox still sets it (prefs.js). Change it in about:config."
-                    : "Removed our line from user.js. Applies when Firefox next starts."
-            }
-        } catch {
-            message = "Couldn't write user.js: \(error.localizedDescription)"
-        }
-        refreshSoon()
-    }
-
-    func restartFirefoxGPU() {
-        cancelConfirm()
-        guard let gpu = report.firefox.gpu else { return }
-        switch FirefoxLevers.restartGPU(gpu) {
-        case .restarted:
-            message = "Asked the GPU process to quit. Firefox relaunches it; WebGL and canvas content resets."
-        case .tooYoung(let up):
-            message = "The GPU process started \(Format.duration(up)) ago. Firefox counts a restart inside 30 s as a crash; try again shortly."
-        case .refused(let why):
-            message = "Not restarted: \(why)."
-        }
-        refreshSoon()
-    }
-
     // MARK: Memory pressure in this process
 
     /// Drops what we can rebuild: expanded rows, pending reports, image caches.
     func dropCaches() {
         expanded = []
-        showAllApps = false
+        showAll = false
         pendingReport = nil
         if !panelOpen { report = .empty }
         latestProgress = nil
         StatusGlyph.dropCache()
         ShareCard.dropCache()
+        IconCache.drop()
         _ = malloc_zone_pressure_relief(nil, 0)
     }
 
-    // MARK: Derived text
-
-    var helperStatusText: String {
-        switch availability {
-        case .none: "Checking helper…"
-        case .root: "Running as root"
-        case .helper(let v): "Helper \(v)"
-        case .unavailable: HelperInstaller.isInstalled ? "Helper not answering" : "No helper"
-        }
-    }
+    // MARK: Derived
 
     var visibleRows: [AppRow] {
-        showAllApps ? report.rows : Array(report.rows.prefix(8))
+        showAll ? report.rows : Array(report.rows.prefix(5))
     }
+}
+
+/// 16 pt app icons for the rows, rendered once per bundle at 2x and kept small.
+@MainActor
+enum IconCache {
+    private static var icons: [String: NSImage] = [:]
+
+    static func icon(for path: String?) -> NSImage? {
+        guard let path else { return nil }
+        if let cached = icons[path] { return cached }
+        let source = NSWorkspace.shared.icon(forFile: path)
+        guard let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: 32, pixelsHigh: 32, bitsPerSample: 8, samplesPerPixel: 4,
+                                         hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0)
+        else { return nil }
+        rep.size = NSSize(width: 16, height: 16)
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
+        NSGraphicsContext.current?.imageInterpolation = .high
+        source.draw(in: NSRect(x: 0, y: 0, width: 16, height: 16), from: .zero, operation: .sourceOver, fraction: 1)
+        NSGraphicsContext.restoreGraphicsState()
+        let small = NSImage(size: NSSize(width: 16, height: 16))
+        small.addRepresentation(rep)
+        icons[path] = small
+        return small
+    }
+
+    static func drop() { icons = [:] }
 }

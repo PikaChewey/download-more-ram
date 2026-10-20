@@ -3,14 +3,15 @@ import AppKit
 import RAMKit
 import SwiftUI
 
-/// Debug-only: `DownloadMoreRAM --render-ui <dir> [page ...]` renders every panel state offscreen at
-/// 2x, light and dark, from the fake machine in SampleData, plus the share card and the glyph at
-/// several fill levels, then quits. Activation policy is prohibited; no window is ever ordered front.
+/// Debug-only: `DownloadMoreRAM --render-ui <dir> [state ...]` renders every panel state offscreen at
+/// 2x, light and dark, from the fake machine in SampleData, plus the glyph at several fill levels,
+/// the share cards and a sample recording (`clip` also renders the mp4 from it). Review only; never
+/// for marketing. Activation policy is prohibited; no window is ever ordered front.
 @MainActor
 enum Snapshots {
-    static let pages = ["normal", "near-wall", "imminent", "no-helper", "installing", "downloading", "receipt",
-                        "receipt-nothing", "receipt-shared", "sections", "sections-full", "confirm", "autopilot"]
-    static let glyphLevels = [0, 38, 72, 91]
+    static let pages = ["normal", "near-wall", "imminent", "paused", "no-helper", "installing", "levers", "expanded", "all",
+                        "downloading", "downloading-levers", "receipt", "receipt-nothing", "receipt-shared"]
+    static let glyphLevels = [0, 38, 72, 85, 96]
 
     static func runIfRequested() -> Bool {
         let args = CommandLine.arguments
@@ -27,8 +28,8 @@ enum Snapshots {
         let fixtures = Fixtures()
 
         // Panel first paint: from creating the panel view (data already loaded, as when the user clicks
-        // the glyph) to its first finished offscreen render. Median of 5. A running app has already
-        // loaded SwiftUI and fonts (the status item is drawn), so warm that up with an unrelated view.
+        // the glyph) to its first finished offscreen render. A running app has already loaded SwiftUI
+        // and fonts (the status item is drawn), so warm that up with an unrelated view.
         _ = renderImage(Text("Download More RAM").font(.system(size: 12)), appearance: .aqua)
         let first = makeModel("normal", fixtures: fixtures, defaults: defaults)
         var samples: [Double] = []
@@ -45,26 +46,46 @@ enum Snapshots {
             for page in pages where only.isEmpty || only.contains(page) {
                 let model = makeModel(page, fixtures: fixtures, defaults: defaults)
                 write(renderImage(PanelView(model: model), appearance: appearance), to: dir.appendingPathComponent("\(page)-\(name).png"))
-                Theme.maxHeight = 720
-                Theme.sectionsMaxHeight = 300
             }
             if only.isEmpty || only.contains("glyph") {
-                for level in glyphLevels {
-                    let view = GlyphPreview(percent: Double(level), downloading: false, text: "\(level)%")
-                    write(renderImage(view, appearance: appearance), to: dir.appendingPathComponent("glyph-\(level)-\(name).png"))
+                let strip = HStack(spacing: 16) {
+                    ForEach(glyphLevels, id: \.self) { GlyphPreview(percent: Double($0), atWall: $0 >= 85, downloading: false, text: "\($0)%") }
+                    GlyphPreview(percent: 38, atWall: false, downloading: true, frame: 1, text: "")
+                    GlyphPreview(percent: 38, atWall: false, downloading: false, text: "")
                 }
-                let view = GlyphPreview(percent: 38, downloading: true, text: "")
-                write(renderImage(view, appearance: appearance), to: dir.appendingPathComponent("glyph-downloading-\(name).png"))
-                let strip = HStack(spacing: 14) {
-                    ForEach(glyphLevels, id: \.self) { GlyphPreview(percent: Double($0), downloading: false, text: "\($0)%") }
-                    GlyphPreview(percent: 0, downloading: true, text: "")
-                }.padding(6)
+                .padding(.horizontal, 8)
+                .frame(height: 24)
                 write(renderImage(strip, appearance: appearance), to: dir.appendingPathComponent("glyph-strip-\(name).png"))
             }
         }
         if only.isEmpty || only.contains("share-card") {
-            writeCard(fixtures.receipt, to: dir.appendingPathComponent("share-card.png"))
+            writeCard(fixtures.receiptLevers, to: dir.appendingPathComponent("share-card.png"))
+            writeCard(fixtures.receipt, to: dir.appendingPathComponent("share-card-signal-only.png"))
             writeCard(fixtures.receiptNothing, to: dir.appendingPathComponent("share-card-nothing.png"))
+        }
+        if only.isEmpty || only.contains("recording") || only.contains("clip") {
+            let url = dir.appendingPathComponent("sample-recording.json")
+            try? SampleData.recordingJSON(receipt: fixtures.receiptLevers, progress: fixtures.progressLevers).write(to: url)
+            print("wrote:", url.lastPathComponent, "(sample data)")
+            if only.contains("clip") {
+                _ = ClipRenderer.renderCLI(recordingPath: url.path, outPath: dir.appendingPathComponent("sample-clip.mp4").path)
+            }
+        }
+        if only.contains("clip-frames") {
+            // Stills of the clip at its beats, for review without playing the video.
+            if let data = try? Data(contentsOf: dir.appendingPathComponent("sample-recording.json")) {
+                let decoder = JSONDecoder()
+                decoder.dateDecodingStrategy = .iso8601
+                if let rec = try? decoder.decode(ClipRenderer.Recording.self, from: data) {
+                    let clip = ClipData(rec)
+                    for t in [0.0, 0.9, 2.0, 3.16, 5.0, 7.5, 8.6, 9.5, 12.5, 15.0, 17.0] {
+                        if let cg = ClipRenderer.renderFrame(ClipScene(t: t, data: clip)) {
+                            let rep = NSBitmapImageRep(cgImage: cg)
+                            write(rep, to: dir.appendingPathComponent(String(format: "clip-%04.1fs.png", t)))
+                        }
+                    }
+                }
+            }
         }
         return true
     }
@@ -73,6 +94,8 @@ enum Snapshots {
     struct Fixtures {
         let receipt: Receipt
         let progress: [ReliefProgress]
+        let receiptLevers: Receipt
+        let progressLevers: [ReliefProgress]
         let receiptNothing: Receipt
         let systemNormal = SampleData.normalSystem()
         let wallNormal = SampleData.normalWall()
@@ -81,18 +104,23 @@ enum Snapshots {
         let systemImminent = SampleData.imminentSystem()
         let wallImminent = SampleData.imminentWall()
         let reportNormal: ProcessReport
+        let reportLevers: ProcessReport
         let reportBusy: ProcessReport
+        let reportPaused: ProcessReport
 
         init() {
             (receipt, progress) = SampleData.download(nothing: false)
+            (receiptLevers, progressLevers) = SampleData.download(nothing: false, levers: [.firefoxGPU, .leftovers])
             (receiptNothing, _) = SampleData.download(nothing: true)
-            reportNormal = SampleData.report(busy: false, system: systemNormal)
-            reportBusy = SampleData.report(busy: true, system: systemNear)
+            reportNormal = SampleData.report(SampleData.Machine(busy: false, bigGPU: false), system: systemNormal, wall: wallNormal)
+            reportLevers = SampleData.report(SampleData.Machine(busy: true, bigGPU: true), system: systemNormal, wall: wallNormal)
+            reportBusy = SampleData.report(SampleData.Machine(busy: true, bigGPU: true), system: systemNear, wall: wallNear)
+            reportPaused = SampleData.report(SampleData.Machine(busy: false, bigGPU: false, paused: true), system: systemNormal, wall: wallNormal)
         }
 
-        /// The progress event nearest to 60% of the way through.
-        var progress60: ReliefProgress? {
-            progress.min { abs($0.elapsed / max($0.total, 1) - 0.6) < abs($1.elapsed / max($1.total, 1) - 0.6) }
+        /// The progress event nearest to `fraction` of the way through the window.
+        func progress(_ list: [ReliefProgress], at fraction: Double) -> ReliefProgress? {
+            list.min { abs($0.elapsed / max($0.total, 1) - fraction) < abs($1.elapsed / max($1.total, 1) - fraction) }
         }
     }
 
@@ -111,42 +139,40 @@ enum Snapshots {
             model.system = f.systemImminent
             model.wall = f.wallImminent
             model.report = f.reportBusy
+        case "paused":
+            model.report = f.reportPaused
         case "no-helper":
             model.availability = .unavailable(reason: ReliefError.notPermitted.description)
         case "installing":
             model.availability = .unavailable(reason: ReliefError.notPermitted.description)
             model.installing = true
+        case "levers":
+            model.report = f.reportLevers
+            model.setAlways(.firefoxGPU, true)
+        case "expanded":
+            model.report = f.reportLevers
+            model.expanded = [f.reportLevers.rows.first?.id ?? ""]
+        case "all":
+            model.report = f.reportBusy
+            model.showAll = true
         case "downloading":
             model.page = .downloading
             model.downloading = true
-            model.progress = f.progress60
+            model.progress = f.progress(f.progress, at: 0.6)
+        case "downloading-levers":
+            model.page = .downloading
+            model.downloading = true
+            model.progress = f.progressLevers.last { $0.lever != nil }
         case "receipt":
             model.page = .receipt
-            model.receipt = f.receipt
+            model.receipt = f.receiptLevers
         case "receipt-nothing":
             model.page = .receipt
             model.receipt = f.receiptNothing
         case "receipt-shared":
             model.page = .receipt
-            model.receipt = f.receipt
-            model.shareNote = "Saved as \(ShareCard.fileName(f.receipt)) and copied"
-        case "sections":
-            model.report = f.reportBusy
-        case "sections-full":
-            model.report = f.reportBusy
-            model.showAllApps = true
-            Theme.maxHeight = 4000
-            Theme.sectionsMaxHeight = 4000
-        case "confirm":
-            model.report = f.reportBusy
-            model.expanded = ["app-500", "agent-claudeCode"]
-            model.arm("firefox-unloader")
-            if let http = f.reportBusy.leftovers.first(where: { $0.record.pid == 800 }) { model.quitAttempted.insert(http.id) }
-            model.message = "Sent SIGTERM to Python (800)."
-            Theme.maxHeight = 4000
-            Theme.sectionsMaxHeight = 4000
-        case "autopilot":
-            model.autopilotOn = true
+            model.receipt = f.receiptLevers
+            model.shareNote = "Saved as \(ShareCard.fileName(f.receiptLevers)) and copied"
         default:
             break
         }
@@ -170,7 +196,8 @@ enum Snapshots {
     static func renderImage(_ view: some View, appearance: NSAppearance.Name) -> NSBitmapImageRep? {
         let dark = appearance == .darkAqua
         let root = view
-            .background(Color(white: dark ? 0.17 : 0.95))
+            .padding(8)
+            .background(Color(white: dark ? 0.30 : 0.80))
             .environment(\.colorScheme, dark ? .dark : .light)
         let host = NSHostingView(rootView: AnyView(root))
         host.appearance = NSAppearance(named: appearance)
@@ -208,21 +235,23 @@ enum Snapshots {
     }
 }
 
-/// The status item as it appears in the menu bar: template glyph, tinted like the status bar would.
+/// The status item as it appears in the menu bar: the template glyph in the label colour.
 struct GlyphPreview: View {
     var percent: Double
+    var atWall: Bool
     var downloading: Bool
+    var frame: Int = 0
     var text: String
 
     var body: some View {
         HStack(spacing: 4) {
-            Image(nsImage: StatusGlyph.image(wallPercent: percent, downloading: downloading, frame: 1))
+            Image(nsImage: StatusGlyph.image(wallPercent: percent, atWall: atWall, downloading: downloading, frame: frame))
                 .renderingMode(.template)
-                .foregroundStyle(downloading ? Theme.primary : (Theme.wallColor(percent) ?? Theme.primary))
-            if !text.isEmpty { Text(text).font(.system(size: 12).monospacedDigit()).foregroundStyle(Theme.primary) }
+                .foregroundStyle(Theme.ink)
+            if !text.isEmpty { Text(text).font(.system(size: 12).monospacedDigit()).foregroundStyle(Theme.ink) }
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 4)
+        .padding(.horizontal, 6)
+        .padding(.vertical, 3)
     }
 }
 #endif

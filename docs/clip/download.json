@@ -1,0 +1,11 @@
+{
+  "fps" : 30,
+  "frames" : 540,
+  "headline" : "921.2 MB back",
+  "output" : "download.mp4",
+  "recording" : "bench\/results\/2026-10-20T13-10-demo-recording.json",
+  "renderer" : "DownloadMoreRAM --render-clip",
+  "seconds" : 18,
+  "sha256" : "af5b25d2c6ef49b2aa4fb48339e57838b9cafc1e174b2083bb1ec144506765be",
+  "size" : "1080x1080"
+}

@@ -18,8 +18,11 @@ public enum AgentTool: String, Codable, Sendable, CaseIterable {
     /// Detects the agent CLI from the executable name/path, plus argv for interpreter-launched
     /// CLIs (node/python running the agent's entry script).
     public static func detect(name: String, path: String?, argv: [String]? = nil) -> AgentTool? {
-        let exe = (path.map { ($0 as NSString).lastPathComponent } ?? name).lowercased()
-        switch exe {
+        // Case-sensitive on purpose: the CLIs are lowercase ("claude", "codex"), the desktop apps
+        // that host them are capitalized ("Claude", "Codex") and are not agent sessions.
+        let exeExact = path.map { ($0 as NSString).lastPathComponent } ?? name
+        let exe = exeExact.lowercased()
+        switch exeExact {
         case "claude": return .claudeCode
         case "codex": return .codex
         case "cursor-agent": return .cursor

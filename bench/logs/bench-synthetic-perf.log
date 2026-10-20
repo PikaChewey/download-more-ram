@@ -1,0 +1,38 @@
+== synthetic Tue Oct 20 13:14:01 EDT 2026
+trial 1/3: control
+  control: -93.9 MB net
+cooling down 60s
+trial 1/3: relief
+  relief: -120.0 MB net
+cooling down 60s
+trial 2/3: relief
+  relief: +304.2 MB net
+cooling down 60s
+trial 2/3: control
+  control: -22.8 MB net
+cooling down 60s
+trial 3/3: relief
+  relief: -14.7 MB net
+cooling down 60s
+trial 3/3: control
+  control: -11.6 MB net
+
+net bytes returned: relief +56.5 MB ± +220.9 MB vs control -42.8 MB ± +44.6 MB  (Welch t = 0.76, p = 0.520)
+cachehog bytes returned: relief +112.0 MB ± +13 KB vs control +16 KB ± 0 B  (Welch t = 21505.01, p = < 0.001)
+Saved /Users/bryan/Documents/XCode/DownloadMoreRAM/bench/results/2026-10-20T13-14-02-synthetic.json
+== perf Tue Oct 20 13:21:06 EDT 2026
+trial 1/5: control
+  control: +10.1 MB net, workload 0.14 s (3.64 GB/s, 18024 swapouts)
+cooling down 60s
+trial 1/5: relief
+  relief: +65.5 MB net, workload 0.13 s (3.93 GB/s, 0 swapouts)
+cooling down 60s
+trial 2/5: relief
+  relief: +324.4 MB net, workload 0.15 s (3.41 GB/s, 17452 swapouts)
+cooling down 60s
+trial 2/5: control
+  control: -62.3 MB net, workload 0.14 s (3.77 GB/s, 18848 swapouts)
+cooling down 60s
+trial 3/5: relief
+The helper refused: wait 1s between downloads
+== done Tue Oct 20 13:26:49 EDT 2026

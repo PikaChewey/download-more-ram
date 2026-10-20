@@ -26,3 +26,16 @@ Best relief arm (trial 5): +1.54 GB net; Claude Code +1.56 GB, Claude Code +13.2
 
 Best relief arm (trial 2): +304.2 MB net; Claude Code +224.0 MB, Claude Code +73.4 MB, Firefox +15.6 MB, Claude Code +592 KB, Claude Code +512 KB.
 
+## perf · 2026-10-20 13:48 · Apple M5 · 16 GB · macOS 26.5.2
+
+- signal held 10s, settle 5s, cooldown 1m 00s, seed 20261020
+- workload: allocate and write 437 MiB in a fresh process, then exit
+
+| Metric | Relief (mean ± sd) | Control (mean ± sd) | n | Welch t | p | Cohen's d |
+|---|---:|---:|---:|---:|---:|---:|
+| net bytes returned | +200.8 MB ± 247.9 MB | -488.8 MB ± 1.00 GB | 5/5 | 1.46 | 0.211 | 0.92 |
+| workload seconds | 0.12 s ± 0.01 | 0.12 s ± 0.01 | 5/5 | 0.72 | 0.502 | 0.46 |
+| workload swapouts | 6674 ± 5538 | 7953 ± 7329 | 5/5 | -0.31 | 0.764 | -0.20 |
+
+Best relief arm (trial 3): +490.9 MB net; Claude Code +539.9 MB, Firefox +2.9 MB, ChatGPT +1.3 MB, Claude Code +896 KB, Claude Code +224 KB.
+

@@ -1,0 +1,37 @@
+level=20 pressure=2 swap_used=14389.75MB
+== perf Tue Oct 20 13:48:19 EDT 2026
+trial 1/5: control
+  control: -2.27 GB net, workload 0.12 s (3.45 GB/s, 11708 swapouts)
+cooling down 60s
+trial 1/5: relief
+  relief: +23.1 MB net, workload 0.13 s (3.28 GB/s, 4228 swapouts)
+cooling down 60s
+trial 2/5: relief
+  relief: +451.1 MB net, workload 0.14 s (3.00 GB/s, 0 swapouts)
+cooling down 60s
+trial 2/5: control
+  control: -124.5 MB net, workload 0.12 s (3.63 GB/s, 14512 swapouts)
+cooling down 60s
+trial 3/5: relief
+  relief: +490.9 MB net, workload 0.11 s (4.00 GB/s, 5856 swapouts)
+cooling down 60s
+trial 3/5: control
+  control: +14.4 MB net, workload 0.12 s (3.60 GB/s, 0 swapouts)
+cooling down 60s
+trial 4/5: relief
+  relief: -8.4 MB net, workload 0.11 s (3.82 GB/s, 14968 swapouts)
+cooling down 60s
+trial 4/5: control
+  control: -9.5 MB net, workload 0.12 s (3.51 GB/s, 13544 swapouts)
+cooling down 60s
+trial 5/5: relief
+  relief: +47.1 MB net, workload 0.12 s (3.44 GB/s, 8320 swapouts)
+cooling down 60s
+trial 5/5: control
+  control: -496 KB net, workload 0.11 s (3.92 GB/s, 0 swapouts)
+
+net bytes returned: relief +200.8 MB ± +247.9 MB vs control -488.8 MB ± +1.00 GB  (Welch t = 1.46, p = 0.211)
+workload seconds: relief 0.12 ± 0.01 vs control 0.12 ± 0.01  (Welch t = 0.72, p = 0.502)
+workload swapouts: relief 6674.40 ± 5538.37 vs control 7952.80 ± 7329.40  (Welch t = -0.31, p = 0.764)
+Saved /Users/bryan/Documents/XCode/DownloadMoreRAM/bench/results/2026-10-20T13-48-19-perf.json
+exit 0 Tue Oct 20 14:01:10 EDT 2026

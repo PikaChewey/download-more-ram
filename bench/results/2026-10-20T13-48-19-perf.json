@@ -1,0 +1,1199 @@
+{
+  "arms" : [
+    {
+      "arm" : "control",
+      "compressedAfter" : 4001824768,
+      "compressedBefore" : 3935551488,
+      "excludedBusy" : [
+
+      ],
+      "fixtures" : [
+
+      ],
+      "grossFreedBytes" : 197427008,
+      "headlineBytes" : -2436764328,
+      "startedAt" : "2026-10-20T17:48:19Z",
+      "swapUsedAfter" : 15390277632,
+      "swapUsedBefore" : 15077539840,
+      "topApps" : [
+        {
+          "after" : 10327007408,
+          "before" : 10502922032,
+          "busy" : false,
+          "exitedMembers" : 0,
+          "id" : 77197,
+          "kind" : "agentSession",
+          "name" : "Claude Code",
+          "newMembers" : 1
+        },
+        {
+          "after" : 75432464,
+          "before" : 89784872,
+          "busy" : false,
+          "exitedMembers" : 0,
+          "id" : 99932,
+          "kind" : "other",
+          "name" : "python3.12",
+          "newMembers" : 0
+        },
+        {
+          "after" : 7324483368,
+          "before" : 7326891960,
+          "busy" : false,
+          "exitedMembers" : 0,
+          "id" : 57287,
+          "kind" : "app",
+          "name" : "ChatGPT",
+          "newMembers" : 0
+        },
+        {
+          "after" : 34719904,
+          "before" : 35424416,
+          "busy" : false,
+          "exitedMembers" : 0,
+          "id" : 752,
+          "kind" : "system",
+          "name" : "corespotlightd",
+          "newMembers" : 0
+        },
+        {
+          "after" : 417544840,
+          "before" : 418200200,
+          "busy" : false,
+          "exitedMembers" : 0,
+          "id" : 78371,
+          "kind" : "agentSession",
+          "name" : "Claude Code",
+          "newMembers" : 0
+        },
+        {
+          "after" : 430013472,
+          "before" : 430652448,
+          "busy" : false,
+          "exitedMembers" : 0,
+          "id" : 73185,
+          "kind" : "agentSession",
+          "name" : "Claude Code",
+          "newMembers" : 0
+        },
+        {
+          "after" : 418250480,
+          "before" : 418856688,
+          "busy" : false,
+          "exitedMembers" : 0,
+          "id" : 73132,
+          "kind" : "agentSession",
+          "name" : "Claude Code",
+          "newMembers" : 0
+        },
+        {
+          "after" : 904260000,
+          "before" : 904669600,
+          "busy" : false,
+          "exitedMembers" : 0,
+          "id" : 1066,
+          "kind" : "app",
+          "name" : "Discord",
+          "newMembers" : 0
+        }
+      ],
+      "trial" : 1,
+      "wallAfter" : 39.512071007775425,
+      "wallBefore" : 37.88533289738377,
+      "workload" : {
+        "compressions" : 59012,
+        "decompressions" : 20843,
+        "gbPerSecond" : 3.448458584604934,
+        "pageins" : 208,
+        "seconds" : 0.123753208,
+        "sizeMB" : 437,
+        "swapins" : 80,
+        "swapouts" : 11708
+      }
+    },
+    {
+      "arm" : "relief",
+      "compressedAfter" : 3565846528,
+      "compressedBefore" : 3832496128,
+      "excludedBusy" : [
+        "Firefox",
+        "Claude Code"
+      ],
+      "fixtures" : [
+
+      ],
+      "grossFreedBytes" : 45451544,
+      "headlineBytes" : 24217280,
+      "startedAt" : "2026-10-20T17:49:43Z",
+      "swapUsedAfter" : 15585050624,
+      "swapUsedBefore" : 15665528832,
+      "topApps" : [
+        {
+          "after" : 680234192,
+          "before" : 707662928,
+          "busy" : false,
+          "exitedMembers" : 1,
+          "id" : 80949,
+          "kind" : "agentSession",
+          "name" : "Claude Code",
+          "newMembers" : 0
+        },
+        {
+          "after" : 1086400568,
+          "before" : 1103047072,
+          "busy" : false,
+          "exitedMembers" : 1,
+          "id" : 1066,
+          "kind" : "app",
+          "name" : "Discord",
+          "newMembers" : 0
+        },
+        {
+          "after" : 211242080,
+          "before" : 211569784,
+          "busy" : false,
+          "exitedMembers" : 0,
+          "id" : 774,
+          "kind" : "app",
+          "name" : "Spotlight",
+          "newMembers" : 0
+        },
+        {
+          "after" : 89539496,
+          "before" : 89752488,
+          "busy" : false,
+          "exitedMembers" : 0,
+          "id" : 405,
+          "kind" : "app",
+          "name" : "loginwindow",
+          "newMembers" : 0
+        },
+        {
+          "after" : 3359128,
+          "before" : 3457432,
+          "busy" : false,
+          "exitedMembers" : 0,
+          "id" : 740,
+          "kind" : "system",
+          "name" : "CMFSyncAgent",
+          "newMembers" : 0
+        },
+        {
+          "after" : 14189096,
+          "before" : 14271016,
+          "busy" : false,
+          "exitedMembers" : 0,
+          "id" : 706,
+          "kind" : "system",
+          "name" : "fileproviderd",
+          "newMembers" : 0
+        },
+        {
+          "after" : 46663792,
+          "before" : 46745712,
+          "busy" : false,
+          "exitedMembers" : 0,
+          "id" : 57369,
+          "kind" : "app",
+          "name" : "ChatGPT Computer Use",
+          "newMembers" : 0
+        },
+        {
+          "after" : 531496280,
+          "before" : 531578200,
+          "busy" : false,
+          "exitedMembers" : 0,
+          "id" : 72658,
+          "kind" : "agentSession",
+          "name" : "Claude Code",
+          "newMembers" : 0
+        }
+      ],
+      "trial" : 1,
+      "wallAfter" : 37.734119224438636,
+      "wallBefore" : 38.739762171109874,
+      "workload" : {
+        "compressions" : 55578,
+        "decompressions" : 21190,
+        "gbPerSecond" : 3.2823662965737905,
+        "pageins" : 940,
+        "seconds" : 0.130015292,
+        "sizeMB" : 437,
+        "swapins" : 2064,
+        "swapouts" : 4228
+      }
+    },
+    {
+      "arm" : "relief",
+      "compressedAfter" : 4011753472,
+      "compressedBefore" : 4047749120,
+      "excludedBusy" : [
+
+      ],
+      "fixtures" : [
+
+      ],
+      "grossFreedBytes" : 545472536,
+      "headlineBytes" : 472989432,
+      "startedAt" : "2026-10-20T17:51:07Z",
+      "swapUsedAfter" : 14965014528,
+      "swapUsedBefore" : 14850719744,
+      "topApps" : [
+        {
+          "after" : 9853393656,
+          "before" : 10353957672,
+          "busy" : false,
+          "exitedMembers" : 1,
+          "id" : 77197,
+          "kind" : "agentSession",
+          "name" : "Claude Code",
+          "newMembers" : 1
+        },
+        {
+          "after" : 13888015384,
+          "before" : 13918702592,
+          "busy" : false,
+          "exitedMembers" : 0,
+          "id" : 57583,
+          "kind" : "app",
+          "name" : "Firefox",
+          "newMembers" : 0
+        },
+        {
+          "after" : 192220208,
+          "before" : 203525168,
+          "busy" : false,
+          "exitedMembers" : 0,
+          "id" : 774,
+          "kind" : "app",
+          "name" : "Spotlight",
+          "newMembers" : 0
+        },
+        {
+          "after" : 92766760,
+          "before" : 93930024,
+          "busy" : false,
+          "exitedMembers" : 0,
+          "id" : 99932,
+          "kind" : "other",
+          "name" : "python3.12",
+          "newMembers" : 0
+        },
+        {
+          "after" : 7326596928,
+          "before" : 7327235904,
+          "busy" : false,
+          "exitedMembers" : 0,
+          "id" : 57287,
+          "kind" : "app",
+          "name" : "ChatGPT",
+          "newMembers" : 0
+        },
+        {
+          "after" : 448985712,
+          "before" : 449526384,
+          "busy" : false,
+          "exitedMembers" : 0,
+          "id" : 79358,
+          "kind" : "agentSession",
+          "name" : "Claude Code",
+          "newMembers" : 0
+        },
+        {
+          "after" : 430308384,
+          "before" : 430472224,
+          "busy" : false,
+          "exitedMembers" : 0,
+          "id" : 73185,
+          "kind" : "agentSession",
+          "name" : "Claude Code",
+          "newMembers" : 0
+        },
+        {
+          "after" : 46712944,
+          "before" : 46827632,
+          "busy" : false,
+          "exitedMembers" : 0,
+          "id" : 57369,
+          "kind" : "app",
+          "name" : "ChatGPT Computer Use",
+          "newMembers" : 0
+        }
+      ],
+      "trial" : 2,
+      "wallAfter" : 37.732140609436215,
+      "wallBefore" : 37.829251033755114,
+      "workload" : {
+        "compressions" : 0,
+        "decompressions" : 0,
+        "gbPerSecond" : 2.9986004152643004,
+        "pageins" : 0,
+        "seconds" : 0.142319,
+        "sizeMB" : 437,
+        "swapins" : 0,
+        "swapouts" : 0
+      }
+    },
+    {
+      "arm" : "control",
+      "compressedAfter" : 3918626816,
+      "compressedBefore" : 3647291392,
+      "excludedBusy" : [
+
+      ],
+      "fixtures" : [
+
+      ],
+      "grossFreedBytes" : 115458576,
+      "headlineBytes" : -130548696,
+      "startedAt" : "2026-10-20T17:52:31Z",
+      "swapUsedAfter" : 14994702336,
+      "swapUsedBefore" : 14940176384,
+      "topApps" : [
+        {
+          "after" : 10111900312,
+          "before" : 10217806560,
+          "busy" : false,
+          "exitedMembers" : 1,
+          "id" : 77197,
+          "kind" : "agentSession",
+          "name" : "Claude Code",
+          "newMembers" : 1
+        },
+        {
+          "after" : 14418568,
+          "before" : 18695200,
+          "busy" : false,
+          "exitedMembers" : 1,
+          "id" : 3237,
+          "kind" : "system",
+          "name" : "callservicesd",
+          "newMembers" : 0
+        },
+        {
+          "after" : 2829073128,
+          "before" : 2832759528,
+          "busy" : false,
+          "exitedMembers" : 0,
+          "id" : 72485,
+          "kind" : "app",
+          "name" : "Claude",
+          "newMembers" : 0
+        },
+        {
+          "after" : 446365496,
+          "before" : 446857016,
+          "busy" : false,
+          "exitedMembers" : 0,
+          "id" : 81237,
+          "kind" : "agentSession",
+          "name" : "Claude Code",
+          "newMembers" : 0
+        },
+        {
+          "after" : 6701632,
+          "before" : 6881856,
+          "busy" : false,
+          "exitedMembers" : 0,
+          "id" : 3476,
+          "kind" : "system",
+          "name" : "CommCenter",
+          "newMembers" : 0
+        },
+        {
+          "after" : 448952944,
+          "before" : 449133168,
+          "busy" : false,
+          "exitedMembers" : 0,
+          "id" : 79358,
+          "kind" : "agentSession",
+          "name" : "Claude Code",
+          "newMembers" : 0
+        },
+        {
+          "after" : 9470432,
+          "before" : 9552352,
+          "busy" : false,
+          "exitedMembers" : 0,
+          "id" : 725,
+          "kind" : "system",
+          "name" : "usernotificationsd",
+          "newMembers" : 0
+        },
+        {
+          "after" : 6701536,
+          "before" : 6783456,
+          "busy" : false,
+          "exitedMembers" : 0,
+          "id" : 3239,
+          "kind" : "system",
+          "name" : "accountsd",
+          "newMembers" : 0
+        }
+      ],
+      "trial" : 2,
+      "wallAfter" : 37.72368796614587,
+      "wallBefore" : 37.20924806551603,
+      "workload" : {
+        "compressions" : 35721,
+        "decompressions" : 7519,
+        "gbPerSecond" : 3.6335610697883234,
+        "pageins" : 81,
+        "seconds" : 0.117448917,
+        "sizeMB" : 437,
+        "swapins" : 20,
+        "swapouts" : 14512
+      }
+    },
+    {
+      "arm" : "relief",
+      "compressedAfter" : 3898933248,
+      "compressedBefore" : 3731554304,
+      "excludedBusy" : [
+
+      ],
+      "fixtures" : [
+
+      ],
+      "grossFreedBytes" : 572686384,
+      "headlineBytes" : 514768560,
+      "startedAt" : "2026-10-20T17:53:53Z",
+      "swapUsedAfter" : 14856880128,
+      "swapUsedBefore" : 14895218688,
+      "topApps" : [
+        {
+          "after" : 9784089312,
+          "before" : 10350205736,
+          "busy" : false,
+          "exitedMembers" : 1,
+          "id" : 77197,
+          "kind" : "agentSession",
+          "name" : "Claude Code",
+          "newMembers" : 1
+        },
+        {
+          "after" : 13771918432,
+          "before" : 13774933064,
+          "busy" : false,
+          "exitedMembers" : 0,
+          "id" : 57583,
+          "kind" : "app",
+          "name" : "Firefox",
+          "newMembers" : 0
+        },
+        {
+          "after" : 7328644904,
+          "before" : 7330053928,
+          "busy" : false,
+          "exitedMembers" : 0,
+          "id" : 57287,
+          "kind" : "app",
+          "name" : "ChatGPT",
+          "newMembers" : 0
+        },
+        {
+          "after" : 627803856,
+          "before" : 628721360,
+          "busy" : false,
+          "exitedMembers" : 0,
+          "id" : 80949,
+          "kind" : "agentSession",
+          "name" : "Claude Code",
+          "newMembers" : 0
+        },
+        {
+          "after" : 418167432,
+          "before" : 418396808,
+          "busy" : false,
+          "exitedMembers" : 0,
+          "id" : 78371,
+          "kind" : "agentSession",
+          "name" : "Claude Code",
+          "newMembers" : 0
+        },
+        {
+          "after" : 430668832,
+          "before" : 430881824,
+          "busy" : false,
+          "exitedMembers" : 0,
+          "id" : 73185,
+          "kind" : "agentSession",
+          "name" : "Claude Code",
+          "newMembers" : 0
+        },
+        {
+          "after" : 7291456,
+          "before" : 7422528,
+          "busy" : false,
+          "exitedMembers" : 0,
+          "id" : 702,
+          "kind" : "system",
+          "name" : "sharedfilelistd",
+          "newMembers" : 0
+        },
+        {
+          "after" : 9650704,
+          "before" : 9781776,
+          "busy" : false,
+          "exitedMembers" : 0,
+          "id" : 83060,
+          "kind" : "system",
+          "name" : "secd",
+          "newMembers" : 0
+        }
+      ],
+      "trial" : 3,
+      "wallAfter" : 37.32786999214126,
+      "wallBefore" : 37.22745132353832,
+      "workload" : {
+        "compressions" : 55928,
+        "decompressions" : 2469,
+        "gbPerSecond" : 3.9997717289818913,
+        "pageins" : 266,
+        "seconds" : 0.106695542,
+        "sizeMB" : 437,
+        "swapins" : 60,
+        "swapouts" : 5856
+      }
+    },
+    {
+      "arm" : "control",
+      "compressedAfter" : 4130914304,
+      "compressedBefore" : 4013211648,
+      "excludedBusy" : [
+        "Claude Code"
+      ],
+      "fixtures" : [
+
+      ],
+      "grossFreedBytes" : 22382080,
+      "headlineBytes" : 15123968,
+      "startedAt" : "2026-10-20T17:55:17Z",
+      "swapUsedAfter" : 14860943360,
+      "swapUsedBefore" : 14934278144,
+      "topApps" : [
+        {
+          "after" : 13796789272,
+          "before" : 13815468424,
+          "busy" : false,
+          "exitedMembers" : 1,
+          "id" : 57583,
+          "kind" : "app",
+          "name" : "Firefox",
+          "newMembers" : 0
+        },
+        {
+          "after" : 2835413736,
+          "before" : 2837248888,
+          "busy" : false,
+          "exitedMembers" : 0,
+          "id" : 72485,
+          "kind" : "app",
+          "name" : "Claude",
+          "newMembers" : 0
+        },
+        {
+          "after" : 627836624,
+          "before" : 628147920,
+          "busy" : false,
+          "exitedMembers" : 0,
+          "id" : 80949,
+          "kind" : "agentSession",
+          "name" : "Claude Code",
+          "newMembers" : 0
+        },
+        {
+          "after" : 16712640,
+          "before" : 16958400,
+          "busy" : false,
+          "exitedMembers" : 0,
+          "id" : 3825,
+          "kind" : "system",
+          "name" : "cloudd",
+          "newMembers" : 0
+        },
+        {
+          "after" : 418462344,
+          "before" : 418593416,
+          "busy" : false,
+          "exitedMembers" : 0,
+          "id" : 78371,
+          "kind" : "agentSession",
+          "name" : "Claude Code",
+          "newMembers" : 0
+        },
+        {
+          "after" : 419036912,
+          "before" : 419151600,
+          "busy" : false,
+          "exitedMembers" : 0,
+          "id" : 73132,
+          "kind" : "agentSession",
+          "name" : "Claude Code",
+          "newMembers" : 0
+        },
+        {
+          "after" : 430980128,
+          "before" : 431094816,
+          "busy" : false,
+          "exitedMembers" : 0,
+          "id" : 73185,
+          "kind" : "agentSession",
+          "name" : "Claude Code",
+          "newMembers" : 0
+        },
+        {
+          "after" : 7586272,
+          "before" : 7684576,
+          "busy" : false,
+          "exitedMembers" : 0,
+          "id" : 3808,
+          "kind" : "system",
+          "name" : "BiomeAgent",
+          "newMembers" : 0
+        }
+      ],
+      "trial" : 3,
+      "wallAfter" : 37.85905689015161,
+      "wallBefore" : 37.6555919522225,
+      "workload" : {
+        "compressions" : 0,
+        "decompressions" : 0,
+        "gbPerSecond" : 3.6034413607122313,
+        "pageins" : 0,
+        "seconds" : 0.118430625,
+        "sizeMB" : 437,
+        "swapins" : 0,
+        "swapouts" : 0
+      }
+    },
+    {
+      "arm" : "relief",
+      "compressedAfter" : 4042276864,
+      "compressedBefore" : 4024942592,
+      "excludedBusy" : [
+        "Claude Code",
+        "Firefox"
+      ],
+      "fixtures" : [
+
+      ],
+      "grossFreedBytes" : 5095760,
+      "headlineBytes" : -8765344,
+      "startedAt" : "2026-10-20T17:56:40Z",
+      "swapUsedAfter" : 15381299200,
+      "swapUsedBefore" : 14968356864,
+      "topApps" : [
+        {
+          "after" : 25084672,
+          "before" : 28689488,
+          "busy" : false,
+          "exitedMembers" : 1,
+          "id" : 712,
+          "kind" : "app",
+          "name" : "identityservicesd",
+          "newMembers" : 0
+        },
+        {
+          "after" : 478264448,
+          "before" : 478755968,
+          "busy" : false,
+          "exitedMembers" : 0,
+          "id" : 76060,
+          "kind" : "agentSession",
+          "name" : "Claude Code",
+          "newMembers" : 0
+        },
+        {
+          "after" : 900589672,
+          "before" : 900868200,
+          "busy" : false,
+          "exitedMembers" : 0,
+          "id" : 1066,
+          "kind" : "app",
+          "name" : "Discord",
+          "newMembers" : 0
+        },
+        {
+          "after" : 506101752,
+          "before" : 506183672,
+          "busy" : false,
+          "exitedMembers" : 0,
+          "id" : 81465,
+          "kind" : "agentSession",
+          "name" : "Claude Code",
+          "newMembers" : 0
+        },
+        {
+          "after" : 9814496,
+          "before" : 9880032,
+          "busy" : false,
+          "exitedMembers" : 0,
+          "id" : 725,
+          "kind" : "system",
+          "name" : "usernotificationsd",
+          "newMembers" : 0
+        },
+        {
+          "after" : 8372752,
+          "before" : 8438288,
+          "busy" : false,
+          "exitedMembers" : 0,
+          "id" : 35907,
+          "kind" : "system",
+          "name" : "nsurlsessiond",
+          "newMembers" : 0
+        },
+        {
+          "after" : 9667088,
+          "before" : 9732624,
+          "busy" : false,
+          "exitedMembers" : 0,
+          "id" : 83060,
+          "kind" : "system",
+          "name" : "secd",
+          "newMembers" : 0
+        },
+        {
+          "after" : 6734280,
+          "before" : 6783432,
+          "busy" : false,
+          "exitedMembers" : 0,
+          "id" : 636,
+          "kind" : "system",
+          "name" : "ContinuityCaptureAgent",
+          "newMembers" : 0
+        }
+      ],
+      "trial" : 4,
+      "wallAfter" : 38.57221305270473,
+      "wallBefore" : 37.672022371202615,
+      "workload" : {
+        "compressions" : 31473,
+        "decompressions" : 4782,
+        "gbPerSecond" : 3.8228329164513686,
+        "pageins" : 364,
+        "seconds" : 0.111633917,
+        "sizeMB" : 437,
+        "swapins" : 80,
+        "swapouts" : 14968
+      }
+    },
+    {
+      "arm" : "control",
+      "compressedAfter" : 4110532608,
+      "compressedBefore" : 3894968320,
+      "excludedBusy" : [
+        "DrRacket",
+        "Claude Code"
+      ],
+      "fixtures" : [
+
+      ],
+      "grossFreedBytes" : 6013072,
+      "headlineBytes" : -9945088,
+      "startedAt" : "2026-10-20T17:58:03Z",
+      "swapUsedAfter" : 14958067712,
+      "swapUsedBefore" : 15159394304,
+      "topApps" : [
+        {
+          "after" : 7330430784,
+          "before" : 7332003720,
+          "busy" : false,
+          "exitedMembers" : 0,
+          "id" : 57287,
+          "kind" : "app",
+          "name" : "ChatGPT",
+          "newMembers" : 0
+        },
+        {
+          "after" : 493960536,
+          "before" : 494959960,
+          "busy" : false,
+          "exitedMembers" : 0,
+          "id" : 72658,
+          "kind" : "agentSession",
+          "name" : "Claude Code",
+          "newMembers" : 0
+        },
+        {
+          "after" : 446578488,
+          "before" : 447037240,
+          "busy" : false,
+          "exitedMembers" : 0,
+          "id" : 81237,
+          "kind" : "agentSession",
+          "name" : "Claude Code",
+          "newMembers" : 0
+        },
+        {
+          "after" : 6783432,
+          "before" : 7045576,
+          "busy" : false,
+          "exitedMembers" : 0,
+          "id" : 4335,
+          "kind" : "system",
+          "name" : "accountsd",
+          "newMembers" : 0
+        },
+        {
+          "after" : 900294760,
+          "before" : 900474984,
+          "busy" : false,
+          "exitedMembers" : 0,
+          "id" : 1066,
+          "kind" : "app",
+          "name" : "Discord",
+          "newMembers" : 0
+        },
+        {
+          "after" : 19350152,
+          "before" : 19464840,
+          "busy" : false,
+          "exitedMembers" : 0,
+          "id" : 4366,
+          "kind" : "system",
+          "name" : "homed",
+          "newMembers" : 0
+        },
+        {
+          "after" : 478755968,
+          "before" : 478870656,
+          "busy" : false,
+          "exitedMembers" : 0,
+          "id" : 76060,
+          "kind" : "agentSession",
+          "name" : "Claude Code",
+          "newMembers" : 0
+        },
+        {
+          "after" : 506068984,
+          "before" : 506183672,
+          "busy" : false,
+          "exitedMembers" : 0,
+          "id" : 81465,
+          "kind" : "agentSession",
+          "name" : "Claude Code",
+          "newMembers" : 0
+        }
+      ],
+      "trial" : 4,
+      "wallAfter" : 37.81715773886031,
+      "wallBefore" : 37.64497074688949,
+      "workload" : {
+        "compressions" : 41225,
+        "decompressions" : 3683,
+        "gbPerSecond" : 3.5090910147149135,
+        "pageins" : 239,
+        "seconds" : 0.121614917,
+        "sizeMB" : 437,
+        "swapins" : 863,
+        "swapouts" : 13544
+      }
+    },
+    {
+      "arm" : "relief",
+      "compressedAfter" : 4005888000,
+      "compressedBefore" : 4124049408,
+      "excludedBusy" : [
+        "Claude Code"
+      ],
+      "fixtures" : [
+
+      ],
+      "grossFreedBytes" : 55035488,
+      "headlineBytes" : 49366360,
+      "startedAt" : "2026-10-20T17:59:26Z",
+      "swapUsedAfter" : 14796324864,
+      "swapUsedBefore" : 14938734592,
+      "topApps" : [
+        {
+          "after" : 13592119552,
+          "before" : 13632098048,
+          "busy" : false,
+          "exitedMembers" : 1,
+          "id" : 57583,
+          "kind" : "app",
+          "name" : "Firefox",
+          "newMembers" : 0
+        },
+        {
+          "after" : 644761296,
+          "before" : 651085520,
+          "busy" : false,
+          "exitedMembers" : 0,
+          "id" : 80949,
+          "kind" : "agentSession",
+          "name" : "Claude Code",
+          "newMembers" : 0
+        },
+        {
+          "after" : 7333510952,
+          "before" : 7336034184,
+          "busy" : false,
+          "exitedMembers" : 0,
+          "id" : 57287,
+          "kind" : "app",
+          "name" : "ChatGPT",
+          "newMembers" : 0
+        },
+        {
+          "after" : 449231472,
+          "before" : 449903216,
+          "busy" : false,
+          "exitedMembers" : 0,
+          "id" : 79358,
+          "kind" : "agentSession",
+          "name" : "Claude Code",
+          "newMembers" : 0
+        },
+        {
+          "after" : 446840632,
+          "before" : 447479608,
+          "busy" : false,
+          "exitedMembers" : 0,
+          "id" : 81237,
+          "kind" : "agentSession",
+          "name" : "Claude Code",
+          "newMembers" : 0
+        },
+        {
+          "after" : 418905840,
+          "before" : 419446512,
+          "busy" : false,
+          "exitedMembers" : 0,
+          "id" : 73132,
+          "kind" : "agentSession",
+          "name" : "Claude Code",
+          "newMembers" : 0
+        },
+        {
+          "after" : 74531704,
+          "before" : 75023224,
+          "busy" : false,
+          "exitedMembers" : 0,
+          "id" : 676,
+          "kind" : "app",
+          "name" : "ControlCenter",
+          "newMembers" : 0
+        },
+        {
+          "after" : 192236616,
+          "before" : 192728136,
+          "busy" : false,
+          "exitedMembers" : 0,
+          "id" : 774,
+          "kind" : "app",
+          "name" : "Spotlight",
+          "newMembers" : 0
+        }
+      ],
+      "trial" : 5,
+      "wallAfter" : 37.33078251342483,
+      "wallBefore" : 37.860766413513694,
+      "workload" : {
+        "compressions" : 58966,
+        "decompressions" : 12555,
+        "gbPerSecond" : 3.4356659676042955,
+        "pageins" : 181,
+        "seconds" : 0.124214,
+        "sizeMB" : 437,
+        "swapins" : 260,
+        "swapouts" : 8320
+      }
+    },
+    {
+      "arm" : "control",
+      "compressedAfter" : 3894214656,
+      "compressedBefore" : 4163715072,
+      "excludedBusy" : [
+        "Claude Code",
+        "Firefox"
+      ],
+      "fixtures" : [
+
+      ],
+      "grossFreedBytes" : 8192024,
+      "headlineBytes" : -507952,
+      "startedAt" : "2026-10-20T18:00:50Z",
+      "swapUsedAfter" : 15112863744,
+      "swapUsedBefore" : 14937292800,
+      "topApps" : [
+        {
+          "after" : 3424640,
+          "before" : 5243240,
+          "busy" : false,
+          "exitedMembers" : 0,
+          "id" : 5155,
+          "kind" : "system",
+          "name" : "assessmentagent",
+          "newMembers" : 0
+        },
+        {
+          "after" : 6652384,
+          "before" : 7881208,
+          "busy" : false,
+          "exitedMembers" : 0,
+          "id" : 4897,
+          "kind" : "system",
+          "name" : "accountsd",
+          "newMembers" : 0
+        },
+        {
+          "after" : 418954992,
+          "before" : 419610352,
+          "busy" : false,
+          "exitedMembers" : 0,
+          "id" : 73132,
+          "kind" : "agentSession",
+          "name" : "Claude Code",
+          "newMembers" : 0
+        },
+        {
+          "after" : 494206296,
+          "before" : 494812504,
+          "busy" : false,
+          "exitedMembers" : 0,
+          "id" : 72658,
+          "kind" : "agentSession",
+          "name" : "Claude Code",
+          "newMembers" : 0
+        },
+        {
+          "after" : 418232968,
+          "before" : 418724488,
+          "busy" : false,
+          "exitedMembers" : 0,
+          "id" : 78371,
+          "kind" : "agentSession",
+          "name" : "Claude Code",
+          "newMembers" : 0
+        },
+        {
+          "after" : 447233848,
+          "before" : 447528760,
+          "busy" : false,
+          "exitedMembers" : 0,
+          "id" : 81237,
+          "kind" : "agentSession",
+          "name" : "Claude Code",
+          "newMembers" : 0
+        },
+        {
+          "after" : 9060856,
+          "before" : 9306616,
+          "busy" : false,
+          "exitedMembers" : 0,
+          "id" : 5154,
+          "kind" : "system",
+          "name" : "heard",
+          "newMembers" : 0
+        },
+        {
+          "after" : 4981144,
+          "before" : 5177752,
+          "busy" : false,
+          "exitedMembers" : 0,
+          "id" : 90544,
+          "kind" : "system",
+          "name" : "tccd",
+          "newMembers" : 0
+        }
+      ],
+      "trial" : 5,
+      "wallAfter" : 37.98003732585972,
+      "wallBefore" : 37.82567369783073,
+      "workload" : {
+        "compressions" : 0,
+        "decompressions" : 0,
+        "gbPerSecond" : 3.9219062137066616,
+        "pageins" : 0,
+        "seconds" : 0.108813875,
+        "sizeMB" : 437,
+        "swapins" : 0,
+        "swapouts" : 0
+      }
+    }
+  ],
+  "cooldownS" : 60,
+  "finishedAt" : "2026-10-20T18:01:10Z",
+  "holdMs" : 10000,
+  "machine" : {
+    "chip" : "Apple M5",
+    "memoryBytes" : 17179869184,
+    "model" : "Mac17,2",
+    "osVersion" : "macOS 26.5.2"
+  },
+  "notes" : [
+    "workload: allocate and write 437 MiB in a fresh process, then exit"
+  ],
+  "redone" : [
+
+  ],
+  "scenario" : "perf",
+  "seed" : 20261020,
+  "settleMs" : 5000,
+  "startedAt" : "2026-10-20T17:48:19Z",
+  "summaries" : [
+    {
+      "control" : {
+        "mean" : -512528419.2,
+        "n" : 5,
+        "sd" : 1077237711.3479834
+      },
+      "metric" : "net bytes returned",
+      "relief" : {
+        "mean" : 210515257.6,
+        "n" : 5,
+        "sd" : 259914721.65975457
+      },
+      "welch" : {
+        "cohenD" : 0.922743345091719,
+        "df" : 4.464151002096014,
+        "meanDifference" : 723043676.8,
+        "p" : 0.21113076405439082,
+        "t" : 1.4589853331262923
+      }
+    },
+    {
+      "control" : {
+        "mean" : 0.11801230839999999,
+        "n" : 5,
+        "sd" : 0.005723641598749418
+      },
+      "metric" : "workload seconds",
+      "relief" : {
+        "mean" : 0.12297555020000002,
+        "n" : 5,
+        "sd" : 0.014308494708723878
+      },
+      "welch" : {
+        "cohenD" : 0.45546492601703353,
+        "df" : 5.248150906894295,
+        "meanDifference" : 0.004963241800000032,
+        "p" : 0.502222582914107,
+        "t" : 0.7201532802669544
+      }
+    },
+    {
+      "control" : {
+        "mean" : 7952.8,
+        "n" : 5,
+        "sd" : 7329.396373508531
+      },
+      "metric" : "workload swapouts",
+      "relief" : {
+        "mean" : 6674.4,
+        "n" : 5,
+        "sd" : 5538.367701769177
+      },
+      "welch" : {
+        "cohenD" : -0.19680090244623746,
+        "df" : 7.44480459574329,
+        "meanDifference" : -1278.4000000000005,
+        "p" : 0.7642050194404723,
+        "t" : -0.3111695486533566
+      }
+    }
+  ]
+}

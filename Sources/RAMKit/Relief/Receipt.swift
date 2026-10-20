@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 
 public struct MachineInfo: Codable, Sendable, Equatable {
@@ -76,8 +77,7 @@ public struct Receipt: Codable, Sendable, Identifiable {
     }
 
     public static var defaultDirectory: URL {
-        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("DownloadMoreRAM/receipts", isDirectory: true)
+        RealUser.home.appendingPathComponent("Library/Application Support/DownloadMoreRAM/receipts", isDirectory: true)
     }
 
     /// Writes `<id>.json` and `<id>.md`; returns the JSON URL.
@@ -85,8 +85,10 @@ public struct Receipt: Codable, Sendable, Identifiable {
     public func save(to directory: URL = Receipt.defaultDirectory) throws -> URL {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let json = directory.appendingPathComponent("\(id).json")
+        let md = directory.appendingPathComponent("\(id).md")
         try Receipt.encoder.encode(self).write(to: json, options: .atomic)
-        try markdown().write(to: directory.appendingPathComponent("\(id).md"), atomically: true, encoding: .utf8)
+        try markdown().write(to: md, atomically: true, encoding: .utf8)
+        RealUser.giveBack([directory, json, md])
         return json
     }
 
@@ -121,4 +123,29 @@ public struct Receipt: Codable, Sendable, Identifiable {
         d.dateDecodingStrategy = .iso8601
         return d
     }()
+}
+
+/// The person behind `sudo`: receipts written by `sudo ram download` belong in their home and to them.
+public enum RealUser {
+    public static var home: URL {
+        if geteuid() == 0, let user = ProcessInfo.processInfo.environment["SUDO_USER"], !user.isEmpty,
+           let pw = getpwnam(user) {
+            return URL(fileURLWithPath: String(cString: pw.pointee.pw_dir), isDirectory: true)
+        }
+        return FileManager.default.homeDirectoryForCurrentUser
+    }
+
+    /// chowns files created as root back to the sudo user (no-op otherwise).
+    static func giveBack(_ urls: [URL]) {
+        guard geteuid() == 0, let uidText = ProcessInfo.processInfo.environment["SUDO_UID"], let uid = uid_t(uidText),
+              let gidText = ProcessInfo.processInfo.environment["SUDO_GID"], let gid = gid_t(gidText) else { return }
+        var paths = Set(urls.map(\.path))
+        // Also the app-support folders we may have just created.
+        var dir = urls.first?.deletingLastPathComponent()
+        while let d = dir, d.path.hasPrefix(home.path + "/Library/Application Support/DownloadMoreRAM") {
+            paths.insert(d.path)
+            dir = d.deletingLastPathComponent()
+        }
+        for p in paths { _ = chown(p, uid, gid) }
+    }
 }

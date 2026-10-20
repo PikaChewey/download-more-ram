@@ -42,6 +42,7 @@ let usage = """
       ram download [--hold S]   ask the kernel for its memory-pressure response, measure what came back
       ram quit <pid> [--force]  quit a leftover (SIGTERM; --force sends SIGKILL)
       ram doctor [--days N]     when you hit the wall, what was paused, what to do
+      ram watch [--autopilot]   live wall readout; with --autopilot, download when the wall is near
       ram receipt [last|FILE]   print a saved download receipt
       ram bench real|synthetic|perf [--trials N] [--hold S] [--cooldown S]
                                 relief vs control, Welch's t-test; JSON to bench/results/
@@ -195,6 +196,37 @@ case "doctor":
                 print("  \(f.string(from: e.start)) (\(dur))\(paused)")
             }
         }
+    }
+
+case "watch":
+    let autopilotOn = flags.contains("--autopilot")
+    let backend = autopilotOn ? await ReliefAvailability.detect().backend() : nil
+    if autopilotOn && backend == nil { fail(ReliefError.notPermitted.description, code: 3) }
+    var wall = WallModel()
+    var policy = AutopilotPolicy()
+    var lastLine = ""
+    print(style.dim("Watching memory every 2 s\(autopilotOn ? " · autopilot on" : ""). Ctrl-C to stop."))
+    while true {
+        guard let s = try? SystemSampler.read() else { usleep(2_000_000); continue }
+        wall.add(s)
+        if let w = wall.status() {
+            var line = "\(Format.percent(w.percent)) to the wall · swap \(Format.bytes(s.swapUsed)) · pressure \(s.pressureLevel.word)"
+            if w.imminent { line += " · IMMINENT" } else if let eta = w.etaSeconds { line += " · ~\(Format.duration(eta)) left" }
+            if line != lastLine {
+                let stamp = DateFormatter.localizedString(from: Date(), dateStyle: .none, timeStyle: .medium)
+                print("\(style.dim(stamp))  \(style.wall(w.percent, line))")
+                lastLine = line
+            }
+            if let backend, policy.observe(status: w, pressure: s.pressureLevel, now: Date()) == .download {
+                print(style.bold("Autopilot: downloading RAM (\(w.reason))"))
+                policy.recordDownload(at: Date())
+                if let r = try? await ReliefEngine(backend: backend).run() {
+                    _ = try? r.save()
+                    print(Render.receipt(r, style: style))
+                }
+            }
+        }
+        usleep(2_000_000)
     }
 
 case "bench":

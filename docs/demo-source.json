@@ -2,6 +2,8 @@
   "recording": "bench/results/2026-10-20T13-10-demo-recording.json",
   "sha256": "af5b25d2c6ef49b2aa4fb48339e57838b9cafc1e174b2083bb1ec144506765be",
   "made_by": [
-    "scripts/make-demo-svg.py -> docs/demo.svg"
+    "scripts/make-demo-svg.py -> docs/demo.svg",
+    "DownloadMoreRAM --render-share -> docs/share-card.png",
+    "DownloadMoreRAM --render-clip -> docs/clip/download.mp4 (sidecar docs/clip/download.json)"
   ]
 }

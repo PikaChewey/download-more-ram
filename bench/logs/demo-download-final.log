@@ -1,0 +1,33 @@
+Downloading RAM — macOS memory-pressure signal (critical, 10s) via helper, measured with phys_footprint
+Measuring baseline ░░░░░░░░░░░░░░░░░░░░░░░░  24s left
+Measuring baseline ██▏░░░░░░░░░░░░░░░░░░░░░  22s left
+Downloading RAM    ████▎░░░░░░░░░░░░░░░░░░░  0 B  0 B/s  20s left
+Downloading RAM    ██████▎░░░░░░░░░░░░░░░░░  51.2 MB  88.7 MB/s  18s left
+Downloading RAM    ████████▍░░░░░░░░░░░░░░░  51.4 MB  5.6 MB/s  16s left
+Downloading RAM    ██████████▌░░░░░░░░░░░░░  0 B  0 B/s  14s left
+Downloading RAM    ████████████░░░░░░░░░░░░  64.5 MB  11.2 MB/s  12s left
+Downloading RAM    ██████████████▏░░░░░░░░░  0 B  0 B/s  10s left
+Downloading RAM    ████████████████▏░░░░░░░  0 B  0 B/s  8s left
+Downloaded RAM     ███████████████████████▊  570.9 MB  0s left
+
+✓ Downloaded 570.9 MB of RAM in 24s
+
+  macOS memory-pressure signal         -83.3 MB  python3.12 +10.4 MB, Claude Code +5.0 MB, Discord +1.7 MB, Firefox +1.1 MB
+  Restart Firefox's GPU process       +654.2 MB  GPU process 2.08 GB → 1.32 GB
+  signal, per app:
+  python3.12                 +10.4 MB  ██████████████
+  Claude Code                 +5.0 MB  ██████▋       
+  Discord                     +1.7 MB  ██▎           
+  Firefox                     +1.1 MB  █▌            
+  Claude Code                 +672 KB  ▉             
+  Claude Code                 +528 KB  ▊             
+  Claude Code                 +400 KB  ▌             
+  mdbulkimport                +368 KB  ▌             
+  Claude Code                 +368 KB  ▌             
+  GamePolicyAgent             +352 KB  ▌             
+  tccd                        +224 KB  ▎             
+  searchpartyuseragent        +208 KB  ▎             
+
+  Swap 12.91 GB → 11.91 GB · pressure normal → normal · wall 44% → 29%
+  Measured with phys_footprint (Activity Monitor's Memory column); busy apps and apps that started/quit are not counted.
+  Receipt: /Users/bryan/Library/Application Support/DownloadMoreRAM/receipts/2026-10-20T14-08-27.md

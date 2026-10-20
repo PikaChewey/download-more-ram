@@ -113,11 +113,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         panelController = PanelController(model: model)
         panelController.onVisibilityChange = { [weak self] open in self?.model.setPanelOpen(open) }
-        model.$glyph
-            .receive(on: RunLoop.main)
+        // The subject replays its current value and emits only on change, on the main actor.
+        model.glyphSubject
             .sink { [weak self] state in self?.updateButton(state) }
             .store(in: &observers)
-        updateButton(model.glyph)
         model.start()
 
         // Our own memory pressure: drop caches (spec 9).
@@ -154,11 +153,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             animation = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
                 MainActor.assumeIsolated {
                     guard let self else { return }
+                    guard self.model.glyph.downloading else {
+                        self.updateButton(self.model.glyph)
+                        return
+                    }
                     self.downloadFrame += 1
                     self.updateButton(self.model.glyph)
                 }
             }
-        } else if !state.downloading {
+        } else if !state.downloading, animation != nil {
             animation?.invalidate()
             animation = nil
             downloadFrame = 0

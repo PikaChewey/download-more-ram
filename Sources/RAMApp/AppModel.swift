@@ -137,12 +137,14 @@ actor ProcessAnalyzer {
 }
 
 /// Main-actor state for the status item and the panel. Sampling (spec 9): the system every 2 s
-/// always; processes every 2 s while the panel is open, every 30 s while it is closed. Nothing is
-/// published to SwiftUI while the panel is closed except the glyph state.
+/// while the panel is open and every 5 s while it is closed; processes on every open tick and every
+/// 30 s (sixth closed tick) otherwise. While the panel is closed nothing is published to SwiftUI:
+/// the glyph goes through its own subject, and only when its state changes.
 @MainActor
 final class AppModel: ObservableObject {
-    nonisolated static let systemIntervalS: TimeInterval = 2
-    nonisolated static let closedProcessEveryTicks = 15
+    nonisolated static let openIntervalS: TimeInterval = 2
+    nonisolated static let closedIntervalS: TimeInterval = 5
+    nonisolated static let closedProcessEveryTicks = 6
     nonisolated static let holdMs = 10_000
     nonisolated static let settleMs = 5_000
 
@@ -164,7 +166,10 @@ final class AppModel: ObservableObject {
     @Published var installing = false
     @Published var downloading = false
     @Published var interruptedHold = false
-    @Published var glyph = GlyphState(percent: 0, downloading: false, text: "")
+    /// What the status item shows. Not @Published on purpose: a change here must not invalidate the
+    /// (possibly hidden) SwiftUI panel. Emits only when the state changes.
+    let glyphSubject = CurrentValueSubject<GlyphState, Never>(GlyphState(percent: 0, downloading: false, text: ""))
+    var glyph: GlyphState { glyphSubject.value }
     @Published var autopilotOn: Bool {
         didSet { defaults.set(autopilotOn, forKey: Keys.autopilot) }
     }
@@ -219,16 +224,24 @@ final class AppModel: ObservableObject {
         interruptedHold = ReliefAvailability.interruptedHoldDetected
         tick()
         Task { await checkAvailability(force: true) }
-        let t = Timer.scheduledTimer(withTimeInterval: Self.systemIntervalS, repeats: true) { [weak self] _ in
-            MainActor.assumeIsolated { self?.tick() }
-        }
-        t.tolerance = Self.systemIntervalS * 0.25
-        timer = t
+        schedule()
     }
 
     func stop() {
         timer?.invalidate()
         timer = nil
+    }
+
+    /// One timer: 2 s while the panel is open, 5 s while it is closed, 25% tolerance so the
+    /// kernel can coalesce the wakeup.
+    private func schedule() {
+        timer?.invalidate()
+        let interval = panelOpen ? Self.openIntervalS : Self.closedIntervalS
+        let t = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated { self?.tick() }
+        }
+        t.tolerance = interval * 0.25
+        timer = t
     }
 
     private func tick() {
@@ -267,6 +280,7 @@ final class AppModel: ObservableObject {
 
     func setPanelOpen(_ open: Bool) {
         panelOpen = open
+        if live { schedule() }
         guard open else {
             message = nil
             shareNote = nil
@@ -283,7 +297,9 @@ final class AppModel: ObservableObject {
             page = .main
         }
         if live {
-            analyzeProcesses()
+            // A fresh system sample now (the pending one can be 5 s old); an open tick also
+            // takes the process snapshot.
+            tick()
             Task { await checkAvailability(force: false) }
         }
     }
@@ -293,7 +309,7 @@ final class AppModel: ObservableObject {
     private func publishGlyph() {
         let pct = Int(latestWall?.percent.rounded() ?? 0)
         let next = GlyphState(percent: pct, downloading: downloading, text: menuBarPercent && latestWall != nil ? "\(pct)%" : "")
-        if next != glyph { glyph = next }
+        if next != glyphSubject.value { glyphSubject.send(next) }
     }
 
     // MARK: Relief availability

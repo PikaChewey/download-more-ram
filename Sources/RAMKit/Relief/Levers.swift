@@ -15,7 +15,7 @@ public enum LeverKind: String, Codable, Sendable, CaseIterable {
         switch self {
         case .kernelSignal: "macOS memory-pressure signal"
         case .firefoxGPU: "Restart Firefox's GPU process"
-        case .leftovers: "Quit leftovers agents forgot"
+        case .leftovers: "Quit servers agents left behind"
         case .archivedSessions: "Quit archived agent sessions"
         case .resumePaused: "Resume apps macOS paused"
         }

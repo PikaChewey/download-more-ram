@@ -20,7 +20,7 @@ struct ReliefProgressTests {
 
         let style = Render.Style(color: false)
         let line = Render.progress(replayed, style: style)
-        #expect(line.contains("Quit leftovers agents forgot…"))
+        #expect(line.contains("Quit servers agents left behind…"))
         #expect(line.contains("921.2 MB"))          // signal + GPU so far, in binary units
         #expect(line.contains("7s left"))
         #expect(Render.progress(plain, style: style).contains("32.3 MB"))

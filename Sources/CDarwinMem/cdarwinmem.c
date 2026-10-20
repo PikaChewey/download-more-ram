@@ -328,11 +328,14 @@ int dm_resume_paused(pid_t pid) {
 
 /* ---- restore guard ------------------------------------------------------------------------- */
 
-/* Every catchable signal whose default action terminates the process. SIGKILL/SIGSTOP cannot be
- * caught; the per-pid marker file covers those (the helper restores at its next start). */
+/* Every catchable signal whose default action terminates or stops the process. A job-control stop
+ * (Ctrl-Z) restores too: the hold's own final NORMAL write after `fg` is a harmless repeat.
+ * SIGKILL/SIGSTOP cannot be caught; the per-pid marker file covers those (the helper restores at
+ * its next start). */
 static const int g_guard_signals[] = {
     SIGHUP, SIGINT, SIGQUIT, SIGILL, SIGTRAP, SIGABRT, SIGEMT, SIGFPE, SIGBUS, SIGSEGV, SIGSYS,
     SIGPIPE, SIGALRM, SIGTERM, SIGXCPU, SIGXFSZ, SIGVTALRM, SIGPROF, SIGUSR1, SIGUSR2,
+    SIGTSTP, SIGTTIN, SIGTTOU,
 };
 #define DM_GUARD_NSIG ((int)(sizeof g_guard_signals / sizeof g_guard_signals[0]))
 
@@ -340,6 +343,7 @@ static int g_guard_mib[CTL_MAXNAME];
 static u_int g_guard_miblen = 0;
 static int32_t g_guard_value = 0;
 static volatile sig_atomic_t g_guard_armed = 0;
+static int g_guard_installed = 0;                    /* our handlers are in place (until disarm) */
 static char g_guard_marker[1024];
 static struct sigaction g_guard_old[DM_GUARD_NSIG];
 
@@ -355,7 +359,7 @@ static void dm_guard_handler(int sig) {
 }
 
 int dm_restore_guard_arm(const char *name, int32_t restore_value, const char *marker) {
-    if (g_guard_armed) return EBUSY;                 /* one hold per process at a time */
+    if (g_guard_armed || g_guard_installed) return EBUSY;   /* one hold per process at a time */
     size_t len = CTL_MAXNAME;
     if (sysctlnametomib(name, g_guard_mib, &len) != 0) return errno;
     g_guard_miblen = (u_int)len;
@@ -368,6 +372,7 @@ int dm_restore_guard_arm(const char *name, int32_t restore_value, const char *ma
     sigemptyset(&sa.sa_mask);
     for (int i = 0; i < DM_GUARD_NSIG; i++) sigaddset(&sa.sa_mask, g_guard_signals[i]);
     g_guard_armed = 1;
+    g_guard_installed = 1;
     for (int i = 0; i < DM_GUARD_NSIG; i++) {
         struct sigaction old;
         sigaction(g_guard_signals[i], NULL, &old);
@@ -380,10 +385,13 @@ int dm_restore_guard_arm(const char *name, int32_t restore_value, const char *ma
 }
 
 void dm_restore_guard_disarm(void) {
-    if (!g_guard_armed) return;
     g_guard_armed = 0;
-    for (int i = 0; i < DM_GUARD_NSIG; i++) sigaction(g_guard_signals[i], &g_guard_old[i], NULL);
+    /* Also after a stop signal already restored (armed is 0 then, our handlers still installed). */
+    if (g_guard_installed) {
+        for (int i = 0; i < DM_GUARD_NSIG; i++) sigaction(g_guard_signals[i], &g_guard_old[i], NULL);
+        g_guard_installed = 0;
+    }
     g_guard_marker[0] = '\0';
 }
 
-int dm_restore_guard_is_armed(void) { return g_guard_armed ? 1 : 0; }
+int dm_restore_guard_is_armed(void) { return (g_guard_armed || g_guard_installed) ? 1 : 0; }

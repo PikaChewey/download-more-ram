@@ -36,7 +36,7 @@ public enum SafeKill {
 
     /// Pure guard, exposed for tests: `current` is the process as it is right now.
     public static func check(_ r: ProcessRecord, current: ProcessRecord?, frontmostPid: Int32? = nil) -> KillResult {
-        if r.uid != getuid() { return .refused(.otherUser) }
+        if r.uid != RealUser.uid { return .refused(.otherUser) }
         if protectedNames.contains(r.name) { return .refused(.protected(r.name)) }
         if r.pid == getpid() || r.pid <= 1 || r.pid == frontmostPid { return .refused(.protected(r.name)) }
         if let path = r.path, AppGrouper.isSystemPath(path) { return .refused(.protected(r.name)) }

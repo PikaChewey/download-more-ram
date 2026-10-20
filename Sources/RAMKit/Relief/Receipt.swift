@@ -54,7 +54,8 @@ public struct Receipt: Codable, Sendable, Identifiable {
         Measured with phys_footprint (the number in Activity Monitor's Memory column), summed per \
         app the way the Force Quit dialog groups processes (by responsible process). Apps that were \
         busy during the 2 s baseline (footprint drifting > 15 MB/s or CPU > 50%) and apps that \
-        started or quit during the window are listed but not counted.
+        started or quit during the window are listed but not counted. A helper process that exits \
+        inside an app that keeps running counts as memory that app gave back.
         """
 
     public func markdown() -> String {
@@ -143,6 +144,13 @@ public struct Receipt: Codable, Sendable, Identifiable {
 /// The person behind `sudo`: receipts written by `sudo ram download` belong in their home and to them.
 public enum RealUser {
     public enum Failure: Error { case couldNotDropPrivileges(Int32) }
+
+    /// The person behind the command: SUDO_UID under sudo, else the real uid. Quitting and other
+    /// ownership checks use this, so `sudo ram download --levers …` still acts only on their processes.
+    public static var uid: uid_t {
+        if geteuid() == 0, let s = ProcessInfo.processInfo.environment["SUDO_UID"], let u = uid_t(s), u != 0 { return u }
+        return getuid()
+    }
 
     public static var home: URL {
         if geteuid() == 0, let user = ProcessInfo.processInfo.environment["SUDO_USER"], !user.isEmpty,

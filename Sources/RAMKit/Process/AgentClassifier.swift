@@ -33,6 +33,13 @@ public struct ClaudeDesktopSession: Codable, Sendable, Equatable {
     public var title: String?
     public var lastActivity: Date?
     public var archived: Bool
+
+    public init(id: String, title: String?, lastActivity: Date?, archived: Bool) {
+        self.id = id
+        self.title = title
+        self.lastActivity = lastActivity
+        self.archived = archived
+    }
 }
 
 /// Index of the desktop app's session files. A Claude Code process the app started carries its
@@ -241,7 +248,7 @@ public enum AgentClassifier {
     public static func leftovers(_ s: ProcessSnapshot, cpuHistory: CPUHistory,
                                  info: ProcessInfoSource = LiveProcessInfo(), now: Date = Date()) -> [Leftover] {
         let byPid = Dictionary(s.records.map { ($0.pid, $0) }, uniquingKeysWith: { a, _ in a })
-        let uid = getuid()
+        let uid = RealUser.uid
         var out: [Leftover] = []
         for r in s.records {
             // Orphaned (reparented to launchd) yet still attributed to whoever launched it: a

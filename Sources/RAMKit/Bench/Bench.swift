@@ -116,6 +116,9 @@ public struct BenchResult: Codable, Sendable {
     public var arms: [ArmResult]
     public var summaries: [BenchSummary]
     public var notes: [String]
+    /// Arms that were thrown away and run again, and why (another process sent the signal, or the
+    /// helper asked to wait). Nil in results from before this rule existed.
+    public var redone: [String]? = nil
 
     public func save(to dir: URL) throws -> URL {
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
@@ -152,16 +155,30 @@ public struct BenchRunner: Sendable {
     public var cooldownS: Double
     public var seed: UInt64
     public var fixtureBinary: String?
+    /// Pids of other processes that sent the signal in a time window (from the helper's log).
+    /// An arm whose window, including the cooldown before it, saw one is redone, not counted.
+    public var foreignSignals: @Sendable (Date, Date) -> [Int32]
+    /// Readings for the engine and the gate (injected so tests run on a virtual clock).
+    public var sampling: any Sampling
+    public static let maxRedos = 3
 
     public init(backend: any ReliefBackend, holdMs: Int = 10_000, settleMs: Int = 5_000, cooldownS: Double = 60,
-                seed: UInt64 = 20_261_020, fixtureBinary: String? = nil) {
+                seed: UInt64 = 20_261_020, fixtureBinary: String? = nil,
+                foreignSignals: @escaping @Sendable (Date, Date) -> [Int32] = { from, to in
+                    HelperLog.reliefCallers(from: from, to: to, excluding: getpid()) ?? []
+                }, sampling: any Sampling = LiveSampling()) {
         self.backend = backend
         self.holdMs = holdMs
         self.settleMs = settleMs
         self.cooldownS = cooldownS
         self.seed = seed
         self.fixtureBinary = fixtureBinary
+        self.foreignSignals = foreignSignals
+        self.sampling = sampling
     }
+
+    /// Helper refusals that clear up by waiting (someone else's download is running or just ended).
+    static func isTransient(_ why: String) -> Bool { why.contains("between downloads") || why.contains("already running") }
 
     /// Order of arms per trial: true = relief first.
     public static func order(trials: Int, seed: UInt64) -> [Bool] {
@@ -210,18 +227,24 @@ public struct BenchRunner: Sendable {
     func run(scenario: String, trials: Int, log: @Sendable (String) -> Void, notes: [String] = [],
              setup: Setup) async throws -> BenchResult {
         let start = Date()
-        let first = try SystemSampler.read()
+        let first = try sampling.systemSample()
         let gate = BenchGate.canStart(first)
         guard gate.ok else { throw BenchError.gate(gate.reason) }
         var arms: [ArmResult] = []
+        var redone: [String] = []
         let order = Self.order(trials: trials, seed: seed)
+        // A foreign signal anywhere from the end of the previous arm to the end of this one
+        // (cooldown included) would leak into this arm's numbers.
+        var windowStart = Date()
         for trial in 0..<trials {
             for reliefArm in order[trial] ? [true, false] : [false, true] {
-                if !arms.isEmpty {
+              var attempt = 0
+              while true {
+                if !arms.isEmpty || attempt > 0 {
                     log("cooling down \(Int(cooldownS))s")
                     try await Task.sleep(nanoseconds: UInt64(cooldownS * 1e9))
                 }
-                let now = try SystemSampler.read()
+                let now = try sampling.systemSample()
                 if BenchGate.shouldAbort(now) {
                     throw BenchError.aborted("\(now.availablePercent)% available, pressure \(now.pressureLevel.word)")
                 }
@@ -231,12 +254,34 @@ public struct BenchRunner: Sendable {
                 defer { fixtures.forEach { $0.1.stop() } }
                 let before = fixtures.map { ($0.0, $0.1.pid, ProcessSampler.record(pid: $0.1.pid)?.footprint ?? 0) }
                 let engine = ReliefEngine(backend: reliefArm ? backend : NullBackend(), holdMs: holdMs, settleMs: settleMs,
+                                          sampling: sampling,
                                           wall: { s in var m = WallModel(); m.add(s); return m.status()?.percent ?? 0 })
-                let receipt = try await engine.run()
+                let receipt: Receipt
+                do {
+                    receipt = try await engine.run()
+                } catch let ReliefError.refused(why) where Self.isTransient(why) && attempt < Self.maxRedos {
+                    attempt += 1
+                    redone.append("trial \(trial + 1) \(name): the helper said \"\(why)\"")
+                    log("  the helper said \"\(why)\"; redoing this arm")
+                    continue
+                }
                 let fixtureDeltas = before.map { kind, pid, fp in
                     FixtureDelta(kind: kind, pid: pid, before: fp, after: ProcessSampler.record(pid: pid)?.footprint ?? 0)
                 }
                 let work = try workload?()
+                let foreign = foreignSignals(windowStart, Date())
+                if !foreign.isEmpty {
+                    let who = foreign.map { "pid \($0)" }.joined(separator: ", ")
+                    guard attempt < Self.maxRedos else {
+                        throw BenchError.aborted("other processes (\(who)) kept sending the memory-pressure signal")
+                    }
+                    attempt += 1
+                    redone.append("trial \(trial + 1) \(name): \(who) sent the signal during it")
+                    log("  \(who) sent the signal during this arm; redoing it")
+                    windowStart = Date()
+                    continue
+                }
+                windowStart = Date()
                 arms.append(ArmResult(
                     arm: name, trial: trial + 1, startedAt: receipt.startedAt, headlineBytes: receipt.headlineBytes,
                     grossFreedBytes: receipt.grossFreedBytes, swapUsedBefore: receipt.systemBefore.swapUsed,
@@ -248,11 +293,13 @@ public struct BenchRunner: Sendable {
                 var line = "  \(name): \(Format.bytes(last.headlineBytes, signed: true)) net"
                 if let w = work { line += String(format: ", workload %.2f s (%.2f GB/s, %llu swapouts)", w.seconds, w.gbPerSecond, w.swapouts) }
                 log(line)
+                break
+              }
             }
         }
         return BenchResult(scenario: scenario, machine: .current(), startedAt: start, finishedAt: Date(), holdMs: holdMs,
                            settleMs: settleMs, cooldownS: cooldownS, seed: seed, arms: arms,
-                           summaries: Self.summaries(arms), notes: notes)
+                           summaries: Self.summaries(arms), notes: notes, redone: redone)
     }
 
     static func summaries(_ arms: [ArmResult]) -> [BenchSummary] {

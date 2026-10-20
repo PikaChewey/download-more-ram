@@ -170,7 +170,8 @@ public enum Render {
         return out
     }
 
-    public static func doctor(_ d: Diagnosis, events: [WallEvent], days: Int, system s: SystemSample, style: Style) -> String {
+    public static func doctor(_ d: Diagnosis, events: [WallEvent], days: Int, system s: SystemSample, style: Style,
+                              jetsam: [JetsamEpisode] = [], jetsamUnreadable: Int = 0, appNames: [String: String] = [:]) -> String {
         var out = style.bold("Download More RAM — doctor") + "\n\n"
         if events.isEmpty {
             out += style.green("No \"out of application memory\" events in the last \(days) days.") + "\n"
@@ -183,6 +184,7 @@ public enum Render {
                 out += "  \(f.string(from: e.start)) (\(dur))\(paused)\n"
             }
         }
+        out += crisisReports(jetsam, unreadable: jetsamUnreadable, appNames: appNames, style: style)
         out += "\n" + style.bold("Right now") + "\n"
         if let w = d.wall {
             out += "  " + style.wall(w.percent, "\(Format.percent(w.percent)) to the wall") + " · \(w.reason)"
@@ -219,6 +221,36 @@ public enum Render {
         for (i, f) in d.fixes.enumerated() {
             let est = f.estimateBytes.map { " " + style.green("~\(Format.bytes($0))") } ?? ""
             out += "  \(i + 1). \(f.title)\(est)\n     \(style.dim(f.how))\n"
+        }
+        return out
+    }
+
+    /// What macOS's own crisis reports (JetsamEvent-*.ips) say filled memory, one block per crisis.
+    public static func crisisReports(_ episodes: [JetsamEpisode], unreadable: Int, appNames: [String: String], style: Style) -> String {
+        guard !episodes.isEmpty else {
+            return unreadable > 0 ? "\n" + style.dim("\(unreadable) macOS crisis reports in /Library/Logs/DiagnosticReports need an admin account to read.") + "\n" : ""
+        }
+        var out = "\n" + style.bold("What filled memory (macOS's own crisis reports)") + "\n"
+        let day = DateFormatter(); day.dateFormat = "EEE MMM d HH:mm"
+        let time = DateFormatter(); time.dateFormat = "HH:mm"
+        for e in episodes.suffix(4) {
+            let span = e.end.timeIntervalSince(e.start) >= 60 ? "\(day.string(from: e.start))–\(time.string(from: e.end))" : day.string(from: e.start)
+            var line = "  \(span)"
+            if e.killed > 0 {
+                line += " · macOS killed \(e.killed.formatted()) background process\(e.killed == 1 ? "" : "es")"
+                let whys = JetsamReports.mainReasons(e.killReasons).map(JetsamReports.describe(reason:))
+                if !whys.isEmpty { line += " (\(whys.joined(separator: "; ")))" }
+                let most = e.mostKilled.filter { $0.count > 1 }.prefix(2).map { "\($0.name) \($0.count)×" }
+                if !most.isEmpty { line += "; " + most.joined(separator: ", ") }
+            }
+            out += line + "\n"
+            for a in e.peak.apps.prefix(3) {
+                var row = "     \(pad(appNames[a.name] ?? a.name, 20)) \(lpad(Format.bytes(a.bytes), 9))  \(style.dim(lpad("\(a.processes)", 3) + " proc"))"
+                if a.biggest.count > 1 && a.biggest.name != a.name && a.biggest.bytes * 2 > a.bytes {
+                    row += " · \(a.biggest.name) ×\(a.biggest.count) \(Format.bytes(a.biggest.bytes))"
+                }
+                out += row + "\n"
+            }
         }
         return out
     }

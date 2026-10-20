@@ -27,6 +27,10 @@ enum Env {
         return FileManager.default.isExecutableFile(atPath: p) ? p : nil
     }
 
+    /// The helper suite sends the real memory-pressure signal to the whole Mac (every app drops
+    /// caches), so it runs only when asked: RAM_LIVE_TESTS=1 swift test (scripts/acceptance.sh sets it).
+    static var liveTestsAllowed: Bool { ProcessInfo.processInfo.environment["RAM_LIVE_TESTS"] == "1" }
+
     static var memoryOK: Bool { (Sysctl.int("kern.memorystatus_level") ?? 0) >= 20 && Sysctl.int("kern.memorystatus_vm_pressure_level") != 4 }
     static var fixturesReady: Bool { binary("ram-fixture") != nil && memoryOK }
     /// The helper suite allocates only 512 MiB in total, so it may run down to 15% available.
@@ -128,7 +132,7 @@ struct FixtureTests {
 /// pressure-aware process, which frees its cache, while a process that ignores pressure keeps its
 /// memory. Runs the signed CLI (the helper only accepts team-signed callers).
 @Suite("Relief end to end (helper)", .serialized,
-       .enabled(if: Env.smallFixturesReady && HelperInstaller.isInstalled && Env.signedCLI != nil))
+       .enabled(if: Env.liveTestsAllowed && Env.smallFixturesReady && HelperInstaller.isInstalled && Env.signedCLI != nil))
 struct ReliefEndToEndTests {
     @Test func pressureAwareCacheIsReturnedAndDumbHogIsNot() throws {
         let cache = try Fixture(["cachehog", "--mb", "256"])

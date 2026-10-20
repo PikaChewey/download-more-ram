@@ -42,7 +42,7 @@ let usage = """
       ram apps [--all]          every app's memory, grouped like Force Quit
       ram agents [--quit-archived [--yes]]
                                 AI agent sessions (titles, last activity, archived-but-running) and leftovers
-      ram download [--hold S] [--levers firefox-gpu,leftovers,archived,resume|all] [--dry-run] [--record FILE]
+      ram download [--hold S] [--levers firefox-gpu,leftovers,archived,resume|all] [--yes] [--dry-run] [--record FILE]
                                 ask the kernel for its memory-pressure response, measure what came back
       ram quit <pid> [--force]  quit a leftover (SIGTERM; --force sends SIGKILL)
       ram doctor [--days N] [--fast]
@@ -171,15 +171,49 @@ case "download":
     case .success(let s): hold = s * 1000
     case .failure(let why): fail(why.message, code: 2)
     }
-    let levers: [LeverKind]
+    var levers: [LeverKind]
     switch LeverKind.parse(value("--levers")) {
-    case .success(let l): levers = dryRun ? [] : l
+    case .success(let l): levers = l
     case .failure(let why): fail(why.message, code: 2)
     }
+    let json = flags.contains("--json")
+    // Levers that quit processes the classifier picked: list them first, then ask (or --yes).
+    let quitKinds = levers.filter { $0 == .leftovers || $0 == .archivedSessions }
+    if !quitKinds.isEmpty {
+        var cpu = CPUHistory()
+        cpu.add(ProcessSampler.snapshot())
+        usleep(500_000)
+        let snap = ProcessSampler.snapshot()
+        cpu.add(snap)
+        let targets = LeverPreview.targets(quitKinds, sessions: AgentClassifier.sessions(snap, cpuHistory: cpu),
+                                           leftovers: AgentClassifier.leftovers(snap, cpuHistory: cpu))
+        let out = json ? FileHandle.standardError : FileHandle.standardOutput
+        if targets.isEmpty {
+            out.write(Data(style.dim("Nothing for \(quitKinds.map(\.rawValue).joined(separator: " or ")) to quit right now.\n").utf8))
+        } else {
+            out.write(Data((style.bold(dryRun ? "Would quit, if still idle after the signal:" : "Will quit, if still idle after the signal:") + "\n").utf8))
+            for t in targets {
+                out.write(Data("  \(t.record.name) (pid \(t.record.pid), \(Format.bytes(t.record.footprint)))  \(style.dim(t.why))\n".utf8))
+            }
+            if !dryRun && !flags.contains("--yes") {
+                guard isTTY && !json && isatty(STDIN_FILENO) != 0 else {
+                    fail("Add --yes to quit them, or leave \(quitKinds.map(\.rawValue).joined(separator: "/")) out of --levers.", code: 2)
+                }
+                print("Quit them? [y/N] ", terminator: "")
+                fflush(stdout)
+                let answer = (readLine() ?? "").trimmingCharacters(in: .whitespaces).lowercased()
+                if answer != "y" && answer != "yes" {
+                    levers.removeAll { quitKinds.contains($0) }
+                    print(style.dim("Leaving them running."))
+                }
+            }
+        }
+    }
+    if dryRun { levers = [] }
+    let namedResume = (value("--levers") ?? "").split(separator: ",").contains { $0.trimmingCharacters(in: .whitespaces) == "resume" }
     let engine = ReliefEngine(backend: backend, holdMs: hold, settleMs: 5_000, wall: { s in
         var m = WallModel(); m.add(s); return m.status()?.percent ?? 0
-    }, levers: levers)
-    let json = flags.contains("--json")
+    }, levers: levers, forceResume: namedResume)
     let recordPath = value("--record")
     let recorder = FrameRecorder()
     if !json {
@@ -294,11 +328,19 @@ case "doctor":
                                    reliefAvailable: await ReliefAvailability.detect().backend() != nil,
                                    firefoxProfile: FirefoxLevers.defaultProfile(), cpu: cpu,
                                    duplicates: AgentClassifier.duplicateServers(doctorSessions))
+    let crisis = fast ? (reports: [JetsamReport](), unreadable: 0) : JetsamReports.load(days: days)
+    let jetsam = JetsamReports.episodes(crisis.reports)
     if flags.contains("--json") {
-        struct DoctorJSON: Encodable { var events: [WallEvent]; var diagnosis: Diagnosis }
-        printJSON(DoctorJSON(events: events, diagnosis: diagnosis))
+        struct DoctorJSON: Encodable { var events: [WallEvent]; var jetsam: [JetsamEpisode]; var jetsamUnreadable: Int; var diagnosis: Diagnosis }
+        printJSON(DoctorJSON(events: events, jetsam: jetsam, jetsamUnreadable: crisis.unreadable, diagnosis: diagnosis))
     } else {
-        print(Render.doctor(diagnosis, events: events, days: days, system: system, style: style), terminator: "")
+        // Crisis reports name processes, not apps: label a coalition by the app its process belongs to today.
+        var appNames: [String: String] = [:]
+        for r in snap.records where appNames[r.name] == nil {
+            if let bundle = r.path.flatMap(AppGrouper.outermostBundlePath) { appNames[r.name] = AppGrouper.bundleDisplayName(bundlePath: bundle) }
+        }
+        print(Render.doctor(diagnosis, events: events, days: days, system: system, style: style,
+                            jetsam: jetsam, jetsamUnreadable: crisis.unreadable, appNames: appNames), terminator: "")
     }
 
 case "firefox":

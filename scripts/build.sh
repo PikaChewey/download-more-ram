@@ -90,6 +90,11 @@ if (( APP_OK )) && [[ -f $BIN/DownloadMoreRAM ]]; then
   sign "$IDENTITY" ca.bryanyao.DownloadMoreRAM.cli "$APP/Contents/Helpers/ram"
   sign "$IDENTITY" ca.bryanyao.DownloadMoreRAM.helper "$APP/Contents/Helpers/ram-helper"
   sign "$IDENTITY" ca.bryanyao.DownloadMoreRAM "$APP"
+  if (( SIGN_FAILED )); then
+    echo "codesign failed inside the app bundle; refusing to leave a half-signed app" >&2
+    rm -rf "$APP"
+    exit 1
+  fi
   echo "app: $APP"
 fi
 

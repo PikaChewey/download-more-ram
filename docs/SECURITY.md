@@ -38,13 +38,15 @@ write that folder decides what runs as root: never put `ram helper install` in a
 sudoers rule. Remove: `sudo ram helper uninstall`, which also restores normal pressure.
 
 Under `sudo`, files written on your behalf (receipts, `--record`, bench results) are written with
-your own uid on that thread, so a symlink in your home cannot redirect a root write.
+your own uid for the duration of the write (process-wide seteuid, after the download is over), so a
+symlink in your home cannot redirect a root write.
 
 ## Quitting processes
 
 - Only your own processes. Never other users', never anything under `/System`, `/usr/libexec`,
   `/usr/sbin`, never a protected list (WindowServer, loginwindow, Finder, Dock, launchd, …), and in
-  the app never the frontmost app (the CLI acts only on a pid you type).
+  the app never the frontmost app. The CLI quits only a pid you type, or the processes a lever you
+  named picks (`--levers leftovers,archived`), which it lists first and asks about (or `--yes`).
 - Identity is checked by start time and signalled through an audit token, so a pid reused
   between listing and clicking is refused by the kernel.
 - SIGTERM first; SIGKILL only on a second, explicit click.

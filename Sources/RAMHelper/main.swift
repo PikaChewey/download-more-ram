@@ -133,8 +133,13 @@ final class HelperService: NSObject, RAMHelperXPC, NSXPCListenerDelegate, @unche
         let timer = DispatchSource.makeTimerSource(queue: .global())
         timer.schedule(deadline: .now() + 15, repeating: 15)
         timer.setEventHandler { [self] in
-            let idle = lock.withLock { !policy.isRunning && monotonicNow().timeIntervalSince(lastActivity) > seconds }
-            if idle { log.info("idle, exiting"); exit(0) }
+            // Exit while still holding the lock, so no hold can be admitted between the check and exit.
+            lock.lock()
+            if !policy.isRunning && monotonicNow().timeIntervalSince(lastActivity) > seconds {
+                log.info("idle, exiting")
+                exit(0)
+            }
+            lock.unlock()
         }
         timer.resume()
         idleTimer = timer

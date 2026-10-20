@@ -36,6 +36,20 @@ public struct ReliefProgress: Sendable {
     /// "Restarting Firefox's GPU process…". Results so far are in `leversDone`.
     public var lever: LeverKind? = nil
     public var leversDone: [LeverResult] = []
+
+    /// Memberwise, public so UIs can replay a recording (the app's clip renderer rebuilds progress
+    /// from the frames `ram download --record` wrote).
+    public init(phase: Phase, elapsed: Double, total: Double, reclaimedSoFar: Int64, rateBytesPerSec: Double,
+                topApps: [AppDelta], lever: LeverKind? = nil, leversDone: [LeverResult] = []) {
+        self.phase = phase
+        self.elapsed = elapsed
+        self.total = total
+        self.reclaimedSoFar = reclaimedSoFar
+        self.rateBytesPerSec = rateBytesPerSec
+        self.topApps = topApps
+        self.lever = lever
+        self.leversDone = leversDone
+    }
 }
 
 /// Runs one "download": baseline, kernel pressure signal, live measurement, receipt.
@@ -48,6 +62,8 @@ public actor ReliefEngine {
     let wall: (@Sendable (SystemSample) -> Double)?
     /// Levers to run after the signal (each needs the user's yes where `needsConsent`).
     public let levers: [LeverKind]
+    /// The user named `resume` itself (not via `all`): resume paused apps even near the wall.
+    public let forceResume: Bool
     let actions: any LeverActions
     let info: any ProcessInfoSource
 
@@ -60,7 +76,8 @@ public actor ReliefEngine {
     public init(backend: any ReliefBackend, level: PressureLevel = .critical, holdMs: Int = 10_000,
                 settleMs: Int = 5_000, sampling: any Sampling = LiveSampling(),
                 wall: (@Sendable (SystemSample) -> Double)? = nil, levers: [LeverKind] = [],
-                actions: any LeverActions = LiveLeverActions(), info: any ProcessInfoSource = LiveProcessInfo()) {
+                actions: any LeverActions = LiveLeverActions(), info: any ProcessInfoSource = LiveProcessInfo(),
+                forceResume: Bool = false) {
         self.backend = backend
         self.level = level
         self.holdMs = holdMs
@@ -68,6 +85,7 @@ public actor ReliefEngine {
         self.sampling = sampling
         self.wall = wall
         self.levers = levers.filter { $0 != .kernelSignal }
+        self.forceResume = forceResume
         self.actions = actions
         self.info = info
     }
@@ -97,25 +115,33 @@ public actor ReliefEngine {
         let holdMs = self.holdMs
         let relief = Task { try await backend.relieve(level: level, holdMs: holdMs) }
 
-        // 3. Watch apps respond through the hold and the settle window.
+        // 3. Watch apps respond through the hold and the settle window. On any error, end the hold
+        // (cancelling restores normal pressure) before rethrowing, so a caller that exits right
+        // away never leaves the kernel in simulated pressure.
         let reliefStart = sampling.now()
         var lastReclaimed: Int64 = 0
         var lastTime = reliefStart
         var rate = 0.0
-        while sampling.now().timeIntervalSince(reliefStart) * 1000 < Double(holdMs + settleMs) {
-            try await sampling.sleep(ms: Self.tickMs)
-            let current = sampling.processSnapshot()
-            cpu.add(current)
-            let m = Measurement.deltas(before: before, after: current, busy: busy)
-            let t = sampling.now()
-            let dt = t.timeIntervalSince(lastTime)
-            if dt > 0 { rate = max(0, Double(m.headline - lastReclaimed) / dt) }
-            lastReclaimed = m.headline
-            lastTime = t
-            let inHold = t.timeIntervalSince(reliefStart) * 1000 < Double(holdMs)
-            progress(ReliefProgress(phase: inHold ? .holding : .settling, elapsed: t.timeIntervalSince(started),
-                                    total: total, reclaimedSoFar: m.headline, rateBytesPerSec: rate,
-                                    topApps: Array(m.apps.prefix(5))))
+        do {
+            while sampling.now().timeIntervalSince(reliefStart) * 1000 < Double(holdMs + settleMs) {
+                try await sampling.sleep(ms: Self.tickMs)
+                let current = sampling.processSnapshot()
+                cpu.add(current)
+                let m = Measurement.deltas(before: before, after: current, busy: busy)
+                let t = sampling.now()
+                let dt = t.timeIntervalSince(lastTime)
+                if dt > 0 { rate = max(0, Double(m.headline - lastReclaimed) / dt) }
+                lastReclaimed = m.headline
+                lastTime = t
+                let inHold = t.timeIntervalSince(reliefStart) * 1000 < Double(holdMs)
+                progress(ReliefProgress(phase: inHold ? .holding : .settling, elapsed: t.timeIntervalSince(started),
+                                        total: total, reclaimedSoFar: m.headline, rateBytesPerSec: rate,
+                                        topApps: Array(m.apps.prefix(5))))
+            }
+        } catch {
+            relief.cancel()
+            _ = try? await relief.value
+            throw error
         }
         try await relief.value
 
@@ -141,7 +167,7 @@ public actor ReliefEngine {
             progress(ReliefProgress(phase: .settling, elapsed: sampling.now().timeIntervalSince(started), total: total,
                                     reclaimedSoFar: soFar, rateBytesPerSec: 0, topApps: Array(m.apps.prefix(5)),
                                     lever: kind, leversDone: leverResults))
-            leverResults += try await runner.run([kind], sessions: sessions, leftovers: leftovers, wall: wallNow)
+            leverResults += try await runner.run([kind], sessions: sessions, leftovers: leftovers, wall: wallNow, forceResume: forceResume)
         }
         let offers = LeverPlanner.offers(snapshot: afterSignal, sessions: sessions, leftovers: leftovers, wall: wallNow, now: signalEnd)
             .filter { !levers.contains($0.kind) }

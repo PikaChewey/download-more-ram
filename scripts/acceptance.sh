@@ -15,7 +15,7 @@ latest() { ls -t bench/results/*-$1.json 2>/dev/null | head -1 }
 
 # 1. Build + unit + no-root integration tests
 if scripts/with-build-lock.sh swift build -j 2 >/tmp/ram-accept-build.log 2>&1 && \
-   scripts/with-build-lock.sh swift test -j 2 >/tmp/ram-accept-test.log 2>&1; then
+   RAM_LIVE_TESTS=1 scripts/with-build-lock.sh swift test -j 2 >/tmp/ram-accept-test.log 2>&1; then
   n=$(grep -Eo "Test run with [0-9]+ tests" /tmp/ram-accept-test.log | tail -1 | grep -Eo "[0-9]+")
   record "1 build + tests" PASS "$n tests passed"
 else

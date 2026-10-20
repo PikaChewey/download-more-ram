@@ -104,6 +104,30 @@ public enum LeverPlanner {
     }
 }
 
+/// A process a quitting lever would act on right now: the CLI lists these and asks before it runs.
+public struct QuitTarget: Sendable, Equatable {
+    public var kind: LeverKind
+    public var record: ProcessRecord
+    public var why: String
+}
+
+public enum LeverPreview {
+    /// The same selection `LeverRunner` makes (leftovers; heads of archived, quiet sessions).
+    public static func targets(_ kinds: [LeverKind], sessions: [AgentSession], leftovers: [Leftover]) -> [QuitTarget] {
+        var out: [QuitTarget] = []
+        if kinds.contains(.leftovers) {
+            out += leftovers.map { QuitTarget(kind: .leftovers, record: $0.record, why: "leftover: \($0.reason)") }
+        }
+        if kinds.contains(.archivedSessions) {
+            for s in sessions where AgentClassifier.safeToQuitArchived(s) {
+                guard let head = s.members.first(where: { $0.pid == s.id }) else { continue }
+                out.append(QuitTarget(kind: .archivedSessions, record: head, why: "archived session \"\(s.title ?? s.label)\""))
+            }
+        }
+        return out
+    }
+}
+
 /// Runs the non-signal levers one after another, each with its own before/after measurement.
 public struct LeverRunner: Sendable {
     let sampling: any Sampling
@@ -116,7 +140,10 @@ public struct LeverRunner: Sendable {
         self.settleMs = settleMs
     }
 
-    public func run(_ kinds: [LeverKind], sessions: [AgentSession], leftovers: [Leftover], wall: WallStatus?) async throws -> [LeverResult] {
+    /// `forceResume`: the user named `resume` itself, so paused apps are resumed even near the wall
+    /// (as `ram resume` does); otherwise resuming waits until the wall is not near.
+    public func run(_ kinds: [LeverKind], sessions: [AgentSession], leftovers: [Leftover], wall: WallStatus?,
+                    forceResume: Bool = false) async throws -> [LeverResult] {
         var results: [LeverResult] = []
         for kind in kinds where kind != .kernelSignal {
             let start = sampling.now()
@@ -167,6 +194,11 @@ public struct LeverRunner: Sendable {
                                            detail: "\(quit.count) quit", durationS: sampling.now().timeIntervalSince(start)))
             case .resumePaused:
                 let paused = sampling.processSnapshot().records.filter(\.pausedByWall)
+                if !paused.isEmpty && !forceResume && !PausedApps.safeToResume(wall, system: nil) {
+                    results.append(LeverResult(kind: kind, title: kind.title, bytes: nil, targets: [],
+                                               detail: "skipped: the wall is still near (ram resume does it anyway)", durationS: 0))
+                    continue
+                }
                 var resumed: [String] = []
                 for r in paused where await actions.resume(pid: r.pid) { resumed.append(r.name) }
                 results.append(LeverResult(kind: kind, title: kind.title, bytes: nil, targets: resumed,

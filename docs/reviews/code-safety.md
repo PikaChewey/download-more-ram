@@ -139,3 +139,20 @@ was false with the helper's legacy marker present during the hold and gone after
 processes)" stayed skipped by its 20 % gate (19 % available). A fresh legacy marker from another, concurrent
 hold was visible for a moment after the run and had gone a minute later with pressure at the real level:
 nothing was left stuck.
+
+## Author's changes after review 2 (claims for the next review to verify, not verdicts)
+
+- R-1: `DirectSysctlBackend.relieve` checks `dm_restore_guard_is_armed()` before writing any marker.
+- R-2: SIGTSTP/SIGTTIN/SIGTTOU are guarded; `dm_restore_guard_disarm` restores handlers even after a
+  handler already restored (`g_guard_installed`). Test `jobControlStopsAreGuarded`.
+- R-3: `ReliefEngine.run` cancels and awaits the relief task before rethrowing any error.
+- R-4: the helper's idle exit runs while holding the policy lock.
+- R-5: `--levers leftovers/archived` lists the targets first and asks (TTY) or needs `--yes`;
+  `--dry-run` shows the list. Test `previewListsWhatQuittingLeversWouldQuit`.
+- R-6: the resume lever skips while the wall is near unless `resume` is named explicitly.
+- R-8: ownership checks use `RealUser.uid` (SUDO_UID under sudo).
+- R-10: SECURITY.md reworded.
+- 13: build.sh deletes a half-signed app bundle and exits 1.
+- 21: `Receipt.methodNote` says a helper exiting inside a surviving app counts as given back.
+- Also: the helper end-to-end suite is opt-in (`RAM_LIVE_TESTS=1`, set by scripts/acceptance.sh), and
+  benchmark arms touched by another process's signal (helper log) are redone and listed in `redone`.

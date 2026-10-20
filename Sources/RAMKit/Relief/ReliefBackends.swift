@@ -18,6 +18,8 @@ public struct DirectSysctlBackend: ReliefBackend {
         guard geteuid() == 0 else { throw ReliefError.notPermitted }
         // Validate before anything touches the kernel: a bad hold must never trap mid-hold.
         if let invalid = Self.validate(level: level, holdMs: holdMs) { throw invalid }
+        // A second hold in this process must not touch the first one's marker (same per-pid path).
+        guard dm_restore_guard_is_armed() == 0 else { throw ReliefError.refused("a download is already running in this process") }
         let marker = markerPrefix.flatMap { HoldMarkers.write(prefix: $0) }
         let armed = dm_restore_guard_arm(Trigger.sysctlName, Trigger.restoreValue, marker)
         guard armed == 0 else {

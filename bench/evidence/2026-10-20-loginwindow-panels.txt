@@ -1,0 +1,219 @@
+# loginwindow's own LowMemoryPanel log lines, last 7 days, captured 2026-10-20 15:03 EDT
+# /usr/bin/log show --last 7d --style compact --predicate 'process == "loginwindow" AND (eventMessage CONTAINS "showLowMemoryPanel" OR eventMessage CONTAINS "is low mem paused" OR eventMessage CONTAINS "releasing lowmemory panel") '
+
+Timestamp               Ty Process[PID:TID]
+2026-10-16 03:46:17.083 Df loginwindow[399:ffb] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 03:46:25.190 Df loginwindow[399:ffb] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 04:02:19.885 Df loginwindow[399:ffb] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 04:02:26.723 Df loginwindow[399:ffb] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 04:02:41.005 Df loginwindow[399:ffb] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 04:03:26.887 Df loginwindow[399:ffb] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 04:03:29.755 Df loginwindow[399:ffb] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 04:03:41.210 Df loginwindow[399:ffb] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 04:04:14.422 Df loginwindow[399:ffb] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 04:04:19.630 Df loginwindow[399:ffb] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 04:04:20.310 Df loginwindow[399:ffb] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 04:04:21.767 Df loginwindow[399:ffb] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 04:04:36.817 Df loginwindow[399:ffb] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 04:04:40.215 Df loginwindow[399:ffb] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 04:04:40.252 Df loginwindow[399:ffb] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 04:04:46.384 Df loginwindow[399:ffb] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 04:04:49.828 Df loginwindow[399:ffb] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 04:04:54.978 Df loginwindow[399:ffb] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 04:05:05.839 Df loginwindow[399:ffb] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 04:05:22.062 Df loginwindow[399:ffb] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 04:05:22.166 Df loginwindow[399:ffb] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 04:05:25.620 Df loginwindow[399:ffb] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 04:05:33.049 Df loginwindow[399:ffb] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 04:05:34.755 Df loginwindow[399:ffb] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 04:05:40.056 Df loginwindow[399:ffb] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 04:06:11.097 Df loginwindow[399:ffb] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 04:06:14.793 Df loginwindow[399:ffb] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 04:06:18.891 Df loginwindow[399:ffb] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 04:06:23.120 Df loginwindow[399:ffb] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 04:06:25.111 Df loginwindow[399:ffb] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 04:06:35.415 Df loginwindow[399:ffb] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 04:06:41.956 Df loginwindow[399:ffb] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 04:06:45.506 Df loginwindow[399:ffb] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 04:06:50.473 Df loginwindow[399:ffb] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 04:07:53.364 Df loginwindow[399:ffb] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 04:07:58.430 Df loginwindow[399:ffb] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 04:10:11.525 Df loginwindow[399:ffb] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 04:11:49.928 Df loginwindow[399:ffb] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:06:14.544 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:07:01.989 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:07:03.544 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:07:11.032 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:07:28.089 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:07:32.497 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:07:40.350 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:08:19.489 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:08:19.533 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:08:21.175 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:08:36.923 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:08:43.206 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:08:48.538 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:09:13.655 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:09:13.734 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:09:13.734 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:09:19.448 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:09:26.875 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:09:42.126 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:09:51.699 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:09:55.872 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:09:57.203 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:10:08.333 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:10:20.294 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:10:30.462 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:10:34.979 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:10:41.927 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:10:48.417 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:10:51.654 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:11:05.015 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:11:06.365 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:11:09.814 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:11:16.952 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:11:23.157 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:11:31.530 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:11:32.052 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:11:40.175 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:11:42.987 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:11:50.360 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:11:54.692 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:12:02.571 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:12:08.263 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:12:09.738 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:14:30.911 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:14:34.475 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:14:41.066 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:14:47.542 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:15:08.932 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:15:13.969 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:15:32.253 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:15:35.706 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:16:55.907 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:17:07.102 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:19:02.172 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:19:02.998 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:19:10.991 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:19:22.790 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:19:34.887 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:19:40.209 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:20:18.337 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:21:25.261 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:21:30.288 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:21:40.664 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:22:38.973 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:22:55.621 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:28:02.153 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:28:12.102 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:28:12.880 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:28:47.797 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:30:08.306 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:30:15.150 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:31:47.929 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:31:48.190 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:31:58.111 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:31:59.549 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:32:37.153 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:32:37.413 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:32:51.326 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:32:52.433 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:32:58.567 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:33:02.240 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:34:34.653 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:34:34.720 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:34:39.031 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:35:00.262 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:35:00.456 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:35:10.873 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:35:14.420 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:36:03.741 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:36:04.163 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:37:57.365 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:42:56.399 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:43:39.307 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:46:39.753 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController closeProcessPanel] |      closing and releasing lowmemory panel
+2026-10-16 12:48:34.359 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:49:11.560 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:49:35.178 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:49:54.047 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:50:12.963 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:50:15.544 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:50:15.619 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:50:19.572 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:50:35.473 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:50:36.316 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:50:41.313 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:50:47.251 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:50:55.863 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:51:02.278 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:51:08.688 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:51:22.108 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:51:55.114 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:52:06.464 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:52:16.512 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:52:35.980 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:52:52.204 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:53:38.601 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:54:43.048 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:54:48.794 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:54:58.026 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:55:00.022 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:55:09.243 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:56:41.046 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:56:47.005 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:56:52.195 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:56:56.544 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:57:28.410 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:57:39.160 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:58:25.704 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:58:34.834 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:58:48.262 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 12:59:06.346 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 13:00:32.503 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 13:00:41.566 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 13:00:52.109 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 13:01:03.598 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 13:01:06.753 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 13:02:59.118 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 13:03:04.852 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 13:04:09.779 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 13:04:12.461 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 13:04:50.241 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 13:04:58.228 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 13:05:31.037 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 13:05:36.713 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 13:05:41.823 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 13:05:47.491 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 13:09:48.946 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController closeProcessPanel] |      closing and releasing lowmemory panel
+2026-10-16 13:18:43.147 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 13:19:07.369 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 13:20:10.380 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-16 13:26:18.456 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController closeProcessPanel] |      closing and releasing lowmemory panel
+2026-10-19 22:50:38.518 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-19 22:50:49.299 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-20 03:23:47.799 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-20 03:33:51.170 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[LowMemoryPanel anyAppIsLowMemSuspended] |      app: Firefox is low mem paused
+2026-10-20 03:34:18.878 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[LowMemoryPanel anyAppIsLowMemSuspended] |      app: Firefox is low mem paused
+2026-10-20 03:36:44.496 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController closeProcessPanel] |      closing and releasing lowmemory panel
+2026-10-20 03:40:04.954 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-20 03:40:10.033 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-20 03:40:15.161 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-20 03:40:20.238 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-20 03:52:45.523 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[LowMemoryPanel anyAppIsLowMemSuspended] |      app: ChatGPT is low mem paused
+2026-10-20 03:52:46.824 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[LowMemoryPanel anyAppIsLowMemSuspended] |      app: ChatGPT is low mem paused
+2026-10-20 03:52:57.368 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[LowMemoryPanel anyAppIsLowMemSuspended] |      app: ChatGPT is low mem paused
+2026-10-20 03:52:58.065 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[LowMemoryPanel anyAppIsLowMemSuspended] |      app: ChatGPT is low mem paused
+2026-10-20 03:52:58.907 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[LowMemoryPanel anyAppIsLowMemSuspended] |      app: ChatGPT is low mem paused
+2026-10-20 03:53:01.285 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[LowMemoryPanel anyAppIsLowMemSuspended] |      app: ChatGPT is low mem paused
+2026-10-20 03:53:06.436 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[LowMemoryPanel anyAppIsLowMemSuspended] |      app: ChatGPT is low mem paused
+2026-10-20 03:53:06.940 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[LowMemoryPanel anyAppIsLowMemSuspended] |      app: ChatGPT is low mem paused
+2026-10-20 03:59:27.262 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[LowMemoryPanel anyAppIsLowMemSuspended] |      app: ChatGPT is low mem paused
+2026-10-20 03:59:35.066 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController closeProcessPanel] |      closing and releasing lowmemory panel
+2026-10-20 04:49:18.198 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-20 04:49:52.311 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-20 04:53:28.466 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-20 04:53:28.582 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-20 04:53:30.386 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController showLowMemoryPanel] | enter
+2026-10-20 10:28:29.507 Df loginwindow[405:1090] [com.apple.loginwindow.logging:Standard] -[ProcessPanelController closeProcessPanel] |      closing and releasing lowmemory panel

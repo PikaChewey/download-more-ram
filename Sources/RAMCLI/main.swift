@@ -446,7 +446,11 @@ case "bench":
             .filter { $0.pathExtension == "json" }
         let results = files.compactMap { try? BenchResult.load($0) }
         guard !results.isEmpty else { fail("No results in \(resultsDir.path). Run  ram bench real  first.", code: 1) }
-        let md = BenchReport.markdown(results)
+        // Run history that is not itself a result (aborted attempts), one line each, from bench/results/NOTES.md.
+        let notesFile = resultsDir.appendingPathComponent("NOTES.md")
+        let notes = ((try? String(contentsOf: notesFile, encoding: .utf8)) ?? "").split(separator: "\n")
+            .map { $0.trimmingCharacters(in: .whitespaces) }.filter { $0.hasPrefix("- ") }.map { String($0.dropFirst(2)) }
+        let md = BenchReport.markdown(results, notes: notes)
         let docs = resultsDir.deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("docs/BENCHMARKS.md")
         if FileManager.default.fileExists(atPath: docs.deletingLastPathComponent().path) {
             try? md.write(to: docs, atomically: true, encoding: .utf8)

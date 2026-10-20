@@ -61,7 +61,11 @@ if len(levers) > 1:
         bar = "█" * max(1, round(14 * b / lmx)) if b and b > 0 else ""
         receipt_lines.append((f"  {l['title'][:30]:<30} {amount:>10}  {bar}", "app"))
     if levers[0].get("detail"):
-        receipt_lines.append((f"    signal: {levers[0]['detail'][:70]}", "dim"))
+        d = levers[0]["detail"]
+        # Cut at an item boundary and say so, never mid-number ("Claude +38").
+        if len(d) > 70:
+            d = d[:70].rsplit(", ", 1)[0] + ", …"
+        receipt_lines.append((f"    signal: {d}", "dim"))
 else:
     for a in apps:
         d = a["before"] - a["after"]

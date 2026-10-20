@@ -1,0 +1,42 @@
+# `ram doctor` at 06:44 EDT on 2026-10-20 (the morning after the panels)
+# Verbatim tool output, copied from the build session's transcript (tool result at 2026-10-20T10:44:48.457Z UTC).
+# Nothing below this header was edited except where marked <redacted>.
+
+Download More RAM — doctor
+
+Your Mac hit the memory wall 6 times in the last 7 days
+  Fri Oct 16 03:46 (9h 00m)
+  Fri Oct 16 12:48 (21m 15s)
+  Fri Oct 16 13:18 (7m 35s)
+  Mon Oct 19 22:50 (4h 46m) · paused: Firefox
+  Tue Oct 20 03:40 (19m 30s) · paused: ChatGPT
+  Tue Oct 20 04:49 (still open)
+
+Right now
+  43% to the wall · compressor tracks 43% of its page limit
+  memory 12.50 GB of 16.00 GB · swap 12.84 GB · pressure warning
+  macOS paused part of Claude, Firefox, ChatGPT, Opera GX, Discord, Raycast and never resumed it.
+
+What's using it
+  Firefox                 16.32 GB  39 proc
+  ChatGPT                  4.03 GB  35 proc
+  Claude                   3.42 GB  54 proc
+  Opera GX                 2.22 GB  26 proc
+  Claude Code              1.26 GB  8 proc
+  Discord                  1.20 GB  9 proc
+  24 AI agent sessions hold 11.91 GB; 7 quiet for > 6 h hold 2.84 GB
+  Firefox 16.32 GB (GPU process 5.21 GB) · low-memory tab unloading off
+
+Fixes, biggest first
+  1. Restart Firefox's GPU process (Firefox relaunches it; WebGL/canvas reset) ~5.21 GB
+     ram firefox gpu-restart
+  2. Close 7 agent sessions quiet for more than 6 h ~2.84 GB
+     end them in the app that runs them (ram agents lists them)
+  3. Quit 1 leftover process agents forgot ~10.4 MB
+     ram agents, then ram quit <pid>
+  4. Restart Claude, Firefox, ChatGPT, Opera GX, Discord, Raycast: macOS paused part of it at the last wall and never resumed it
+     quit and reopen the app
+  5. Let Firefox unload idle tabs when memory is critical (off in release builds)
+     ram firefox unloader on (applies at the next Firefox start)
+  6. Install the helper so downloads and autopilot work
+     sudo ram helper install

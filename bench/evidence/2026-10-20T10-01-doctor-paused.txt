@@ -1,0 +1,14 @@
+# `ram doctor` "Right now" section at 10:01 EDT on 2026-10-20
+# Verbatim tool output, copied from the build session's transcript (tool result at 2026-10-20T14:01:38.307Z UTC).
+# Nothing below this header was edited except where marked <redacted>.
+
+Right now
+  46% to the wall · compressor tracks 46% of its page limit
+  memory 13.46 GB of 16.00 GB · swap 14.45 GB · pressure warning
+  If you hit it, macOS pauses Claude first.
+  macOS paused Firefox, ChatGPT, Opera GX, Discord, Raycast at the wall and never resumed them.
+  ChatGPT is paused, but its helpers are using 4.0 cores.
+  Opera GX is paused, but its helpers are using 1.0 cores.
+  Discord is paused, but its helpers are using 1.0 cores.
+
+What's using it

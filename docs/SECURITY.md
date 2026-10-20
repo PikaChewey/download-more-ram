@@ -17,10 +17,10 @@ of running the whole app as root, a tiny launchd daemon (`ram-helper`, source:
   signed by the same team. Ad hoc builds accept any local caller, still bounded by the policy. If
   the helper cannot read its own signature it refuses every caller (fails closed).
 - **What a download does to the system, so you know the cost:** for the hold (10 s by default) the
-  kernel reports simulated critical pressure, so apps drop caches; Chromium-based browsers discard
-  one background tab per critical notification (it reloads when you click it); clean, idle
-  background daemons may exit (launchd restarts them when needed); volatile purgeable memory is
-  purged. The worst a hostile local caller can do on an ad hoc build is cause that up to 30 times an
+  kernel reports simulated critical pressure, so apps drop caches; Chrome (and Chromium browsers
+  that keep its default) discards one background tab per critical notification (it reloads when you
+  click it); the kernel kills idle background daemons that opted into idle exit, and launchd
+  relaunches them on demand; volatile purgeable memory is purged. The worst a hostile local caller can do on an ad hoc build is cause that up to 30 times an
   hour, or resume its own processes that macOS paused at the wall.
 - **Always restores normal pressure:** a hold always runs to its end (even if the client goes
   away) and then resets; every catchable terminating signal (SIGTERM, SIGINT, SIGHUP, SIGQUIT,
@@ -28,7 +28,7 @@ of running the whole app as root, a tiny launchd daemon (`ram-helper`, source:
   before the process dies; after SIGKILL or power loss, the per-process marker in `/var/run` makes
   the helper restore at its next start (launchd relaunches it after any unsuccessful exit and at
   boot). Markers of a hold that is still running are never treated as interrupted.
-- **Logging:** every call is logged with the caller's pid
+- **Logging:** every call that changes anything is logged with the caller's pid
   (`log show --predicate 'subsystem == "ca.bryanyao.DownloadMoreRAM.helper"'`).
 - **Idle:** it exits after 60 s idle; launchd relaunches it on demand.
 
@@ -44,17 +44,21 @@ symlink in your home cannot redirect a root write.
 ## Quitting processes
 
 - Only your own processes. Never other users', never anything under `/System`, `/usr/libexec`,
-  `/usr/sbin`, never a protected list (WindowServer, loginwindow, Finder, Dock, launchd, …), and in
-  the app never the frontmost app. The CLI quits only a pid you type, or the processes a lever you
-  named picks (`--levers leftovers,archived`), which it lists first and asks about (or `--yes`).
+  `/usr/sbin`, never a protected list (WindowServer, loginwindow, Finder, Dock, launchd, …). The CLI
+  quits only a pid you type, or the processes a lever you named picks (`--levers leftovers,archived`),
+  which it lists first and asks about (or `--yes`). Naming `--levers firefox-gpu` is itself the yes
+  for restarting Firefox's GPU process. In the app, levers run when you click them, or inside an
+  autopilot download if you set them to *Always*.
 - Identity is checked by start time and signalled through an audit token, so a pid reused
   between listing and clicking is refused by the kernel.
-- SIGTERM first; SIGKILL only on a second, explicit click.
+- The app only ever sends SIGTERM. The only SIGKILL anywhere is `ram quit <pid> --force`, which you
+  type.
 
 ## Firefox
 
 The only file it ever edits is your Firefox profile's `user.js`, and only after you click. It
-appends one marked line (`browser.lowMemoryResponseMask = 3`). Undo removes exactly that line.
+appends two lines: a marker comment and `user_pref("browser.lowMemoryResponseMask", 3);`. Undo
+removes exactly those two.
 
 ## Privacy
 

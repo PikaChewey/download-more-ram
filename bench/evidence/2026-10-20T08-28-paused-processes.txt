@@ -1,0 +1,5 @@
+# `ram resume` without root at 08:28 EDT: the processes the kernel had paused at the memory wall
+# Verbatim tool output, copied from the build session's transcript (tool result at 2026-10-20T12:28:44.127Z UTC).
+
+macOS paused 7 processes at the memory wall: Opera (5379), Discord (50236), ChatGPT (57287), com.apple.WebKit.GPU (1101), firefox (57583), Claude (57329), com.apple.WebKit.Networking (1149)
+Resuming needs root: click Resume in the Force Quit panel, or run  sudo ram resume  (or install the helper:  sudo ram helper install)

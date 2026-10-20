@@ -1,0 +1,29 @@
+import Foundation
+
+/// The root helper's entire surface: three calls, no paths, no shell, no arbitrary sysctl.
+@objc public protocol RAMHelperXPC {
+    /// Signals `level` (2 = warn, 4 = critical) for `holdMs`, then restores normal. Replies nil on
+    /// success or a human-readable refusal/error.
+    func relieve(level: Int, holdMs: Int, reply: @escaping (String?) -> Void)
+    /// Forces the kernel back to normal pressure (manual mode off).
+    func restore(reply: @escaping (String?) -> Void)
+    /// JSON: {"version": ..., "busy": ..., "lastRelief": ...}.
+    func status(reply: @escaping (String) -> Void)
+}
+
+public enum HelperConstants {
+    public static let label = "ca.bryanyao.DownloadMoreRAM.helper"
+    public static let machService = label
+    public static let installedBinary = "/Library/PrivilegedHelperTools/\(label)"
+    public static let plistPath = "/Library/LaunchDaemons/\(label).plist"
+    /// Exists only while a hold is in progress; a helper that finds it at startup restores normal.
+    public static let holdingMarker = "/var/run/\(label).holding"
+    public static let version = "1.0.0"
+}
+
+public struct HelperStatus: Codable, Sendable {
+    public var version: String
+    public var busy: Bool
+    public var lastRelief: Date?
+    public var reliefsThisHour: Int
+}

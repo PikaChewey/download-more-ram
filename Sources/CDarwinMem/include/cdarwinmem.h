@@ -80,4 +80,13 @@ int dm_proc_idversion(pid_t pid, int32_t *idversion);
  * 0 on success, else errno (ESRCH when the identity no longer matches). */
 int dm_signal_audit(pid_t pid, int32_t idversion, int sig);
 
+
+/* ---- restore guard --------------------------------------------------------------------- */
+
+/* While armed, SIGINT/SIGTERM/SIGHUP first write restore_value to the sysctl `name` (resolved to a
+ * MIB up front so the handler only makes the raw syscall), then re-raise with the default action.
+ * 0 on success, else errno. */
+int dm_restore_guard_arm(const char *name, int32_t restore_value);
+void dm_restore_guard_disarm(void);
+
 #endif

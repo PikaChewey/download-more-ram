@@ -4,6 +4,7 @@ import Foundation
 import RAMKit
 
 let version = "1.0.0"
+setvbuf(stdout, nil, _IOLBF, 0)   // line-buffered even when piped (watch, bench logs)
 let args = Array(CommandLine.arguments.dropFirst())
 let command = args.first ?? "status"
 let flags = Set(args.filter { $0.hasPrefix("--") })

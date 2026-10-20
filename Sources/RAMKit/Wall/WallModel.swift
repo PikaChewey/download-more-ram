@@ -32,6 +32,8 @@ public struct WallModel: Sendable {
     public static let swapLow: UInt64 = 32 << 20
     /// A new swapfile normally appears within a few seconds; the kernel retries every 15 s.
     public static let stuckAfterS: Double = 15
+    /// A time-to-wall needs this much history: a trend fitted on seconds swings by hours.
+    public static let etaMinSpanS: Double = 60
 
     private var history: [(t: Double, sample: SystemSample)] = []
 
@@ -117,7 +119,8 @@ public struct WallModel: Sendable {
     }
 
     func eta(for factor: WallFactor) -> Double? {
-        guard history.count >= 4, let first = history.first else { return nil }
+        guard history.count >= 4, let first = history.first, let last = history.last,
+              last.t - first.t >= Self.etaMinSpanS else { return nil }
         let pts = history.map { ($0.t - first.t, Self.factors($0.sample).first { $0.factor == factor }?.fraction ?? 0) }
         guard let slope = Stats.theilSenSlope(pts), slope > 1e-7, let last = pts.last else { return nil }
         let remaining = (1 - last.1) / slope

@@ -75,6 +75,17 @@ struct WallModelTests {
         #expect(abs(eta - expected) / expected < 0.1)
     }
 
+    @Test func noETAFromSecondsOfHistory() throws {
+        var m = WallModel()
+        let limit98 = 0.98 * 805_810
+        // Steep growth, but only 30 s of samples: too little to promise a time.
+        for i in 0..<16 {
+            m.add(wallSample(t: Double(i) * 2, swapTotal: 40 * gib, swapUsed: 20 * gib,
+                             segments: UInt64(0.7 * limit98) + UInt64(i) * 1000, files: 40))
+        }
+        #expect(try #require(m.status()).etaSeconds == nil)
+    }
+
     @Test func flatHistoryHasNoETA() throws {
         var m = WallModel()
         for i in 0..<10 { m.add(wallSample(t: Double(i) * 10, swapUsed: 5 * gib)) }

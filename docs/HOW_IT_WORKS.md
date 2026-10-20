@@ -89,8 +89,11 @@ from the next two levers. Your receipt shows exactly which apps gave memory back
   So `ram agents` lists idle orphans like "orphaned http.server :8765 from a Claude Code session
   · idle 3h 52m". Quit sends SIGTERM through an audit token, so a reused pid is never hit.
 - **Agent sessions.** Memory is attributed to each Claude Code / Codex / Cursor / Gemini session
-  along with everything it started, labelled by its folder, with its last activity taken from
-  the session transcript. On the author's Mac that was 24 sessions holding 13.95 GB.
+  along with everything it started. A Claude Code process launched by the Claude app carries
+  its session id in `CLAUDE_CODE_HOST_SESSION_ID`; the app's own session record gives the title,
+  the last time you used it, and whether you **archived it while its processes kept running**.
+  Only that one variable is read from the process environment. On the author's Mac that was
+  24 sessions holding 13.95 GB.
 - **Firefox's GPU process.** It can grow to gigabytes (5.3 GB here after 3 days). Firefox is
   built to relaunch it. A restart after 30 s of uptime doesn't count toward its crash limit, and
   WebGL and canvas content resets.

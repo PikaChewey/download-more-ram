@@ -16,6 +16,7 @@ let package = Package(
         .executable(name: "ram", targets: ["RAMCLI"]),
         .executable(name: "ram-helper", targets: ["RAMHelper"]),
         .executable(name: "ram-fixture", targets: ["RAMFixtures"]),
+        .executable(name: "DownloadMoreRAM", targets: ["RAMApp"]),
     ],
     targets: [
         // C shims over libproc, sysctl, host_statistics64 and the responsibility SPI.
@@ -48,10 +49,26 @@ let package = Package(
             name: "RAMFixtures",
             path: "Sources/RAMFixtures"
         ),
+        // The menu bar app (LSUIElement): status glyph + SwiftUI panel. Assembled and signed by scripts/build.sh.
+        .executableTarget(
+            name: "RAMApp",
+            dependencies: ["RAMKit"],
+            path: "Sources/RAMApp",
+            linkerSettings: [
+                .linkedFramework("AppKit"), .linkedFramework("SwiftUI"),
+                .linkedFramework("ServiceManagement"), .linkedFramework("UserNotifications"),
+            ]
+        ),
         .testTarget(
             name: "RAMKitTests",
             dependencies: ["RAMKit", "CDarwinMem"],
             path: "Tests/RAMKitTests"
+        ),
+        // Real processes (fixtures, the signed CLI, the helper when installed). Memory-gated.
+        .testTarget(
+            name: "RAMIntegrationTests",
+            dependencies: ["RAMKit"],
+            path: "Tests/RAMIntegrationTests"
         ),
     ]
 )

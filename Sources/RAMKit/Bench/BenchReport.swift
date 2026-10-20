@@ -15,6 +15,9 @@ public enum BenchReport {
             out += "- signal held \(Format.duration(Double(r.holdMs) / 1000)), settle \(Format.duration(Double(r.settleMs) / 1000)), "
             out += "cooldown \(Format.duration(r.cooldownS)), seed \(r.seed)\n"
             for n in r.notes { out += "- \(n)\n" }
+            if let redone = r.redone, !redone.isEmpty {
+                out += "- arms thrown away and run again (\(redone.count)): " + redone.joined(separator: "; ") + "\n"
+            }
             out += "\n| Metric | Relief (mean ± sd) | Control (mean ± sd) | n | Welch t | p | Cohen's d |\n"
             out += "|---|---:|---:|---:|---:|---:|---:|\n"
             for s in r.summaries {
@@ -44,7 +47,7 @@ public enum BenchReport {
             guard let r = latest[scenario] else { continue }
             for s in r.summaries {
                 let (fmt, _) = formatters(s.metric)
-                let w = s.welch.map { ", p = \(pValue($0.p))" } ?? ""
+                let w = s.welch.map { $0.p < 0.001 ? ", p < 0.001" : ", p = \(pValue($0.p))" } ?? ""
                 lines.append("- **\(scenario)** · \(s.metric): relief \(fmt(s.relief.mean)) vs control \(fmt(s.control.mean)) (n = \(s.relief.n)\(w)) on \(r.machine.summary)")
             }
         }

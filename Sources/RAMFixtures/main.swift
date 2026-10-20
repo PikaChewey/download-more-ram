@@ -4,6 +4,7 @@
 //   ram-fixture dumbhog  --mb N     holds N MiB and ignores pressure (control)
 //   ram-fixture leaker   --mb-per-s R --seconds T   grows R MiB/s for T s, then holds
 //   ram-fixture orphan   --mb N     starts a detached dumbhog and exits (the child is reparented to launchd)
+//   ram-fixture workload --mb N     allocates and writes N MiB as fast as it can, prints "seconds <t>", exits
 //
 // Every mode prints "ready <pid>" once its memory is resident, then sleeps until killed.
 // Pages are filled with non-zero data so the compressor cannot fold them into nothing.
@@ -73,6 +74,14 @@ case "leaker":
         print("leaked \((s + 1) * rate)")
         sleep(1)
     }
+case "workload":
+    let mb = arg("--mb", 1024)
+    let start = DispatchTime.now().uptimeNanoseconds
+    cache.fill(mb: mb)
+    let seconds = Double(DispatchTime.now().uptimeNanoseconds - start) / 1e9
+    print("seconds \(seconds)")
+    _ = cache.free()
+    exit(0)
 case "orphan":
     var pid: pid_t = 0
     var attr: posix_spawnattr_t?

@@ -43,6 +43,9 @@ let usage = """
       ram quit <pid> [--force]  quit a leftover (SIGTERM; --force sends SIGKILL)
       ram doctor [--days N]     when you hit the wall, what was paused, what to do
       ram receipt [last|FILE]   print a saved download receipt
+      ram bench real|synthetic|perf [--trials N] [--hold S] [--cooldown S]
+                                relief vs control, Welch's t-test; JSON to bench/results/
+      ram bench report          regenerate docs/BENCHMARKS.md from bench/results/
       ram restore               force the kernel back to normal pressure (root)
       ram helper install|uninstall|status
                                 the root helper that lets downloads run without sudo
@@ -192,6 +195,65 @@ case "doctor":
                 print("  \(f.string(from: e.start)) (\(dur))\(paused)")
             }
         }
+    }
+
+case "bench":
+    let scenario = args.dropFirst().first ?? "real"
+    let resultsDir: URL = {
+        if let out = value("--out") { return URL(fileURLWithPath: out) }
+        let cwd = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+        if FileManager.default.fileExists(atPath: cwd.appendingPathComponent("Sources/RAMKit").path) {
+            return cwd.appendingPathComponent("bench/results")
+        }
+        return Receipt.defaultDirectory.deletingLastPathComponent().appendingPathComponent("bench")
+    }()
+    if scenario == "report" {
+        let files = ((try? FileManager.default.contentsOfDirectory(at: resultsDir, includingPropertiesForKeys: nil)) ?? [])
+            .filter { $0.pathExtension == "json" }
+        let results = files.compactMap { try? BenchResult.load($0) }
+        guard !results.isEmpty else { fail("No results in \(resultsDir.path). Run  ram bench real  first.", code: 1) }
+        let md = BenchReport.markdown(results)
+        let docs = resultsDir.deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("docs/BENCHMARKS.md")
+        if FileManager.default.fileExists(atPath: docs.deletingLastPathComponent().path) {
+            try? md.write(to: docs, atomically: true, encoding: .utf8)
+            print("Wrote \(docs.path)")
+        } else {
+            print(md)
+        }
+        print("\nREADME block:\n" + BenchReport.readmeBlock(results))
+        exit(0)
+    }
+    let availability = await ReliefAvailability.detect()
+    guard let backend = availability.backend() else {
+        if case .unavailable(let reason) = availability { fail(reason, code: 3) }
+        fail(ReliefError.notPermitted.description, code: 3)
+    }
+    let trials = Int(value("--trials") ?? "") ?? (scenario == "perf" ? 5 : 3)
+    let hold = (Int(value("--hold") ?? "") ?? 10) * 1000
+    let cooldown = Double(value("--cooldown") ?? "") ?? 60
+    let exeDir = URL(fileURLWithPath: CommandLine.arguments[0]).resolvingSymlinksInPath().deletingLastPathComponent()
+    let fixture = [exeDir.appendingPathComponent("ram-fixture").path].first { FileManager.default.isExecutableFile(atPath: $0) }
+    let runner = BenchRunner(backend: backend, holdMs: hold, settleMs: 5_000, cooldownS: cooldown, fixtureBinary: fixture)
+    let log: @Sendable (String) -> Void = { line in print(line); fflush(stdout) }
+    do {
+        let result: BenchResult
+        switch scenario {
+        case "real": result = try await runner.real(trials: trials, log: log)
+        case "synthetic": result = try await runner.synthetic(trials: trials, hogs: Int(value("--hogs") ?? "") ?? 2,
+                                                              mb: Int(value("--mb") ?? "") ?? 256, log: log)
+        case "perf": result = try await runner.perf(trials: trials, sizeMB: Int(value("--mb") ?? "") ?? 1024, log: log)
+        default: fail("usage: ram bench real|synthetic|perf|report", code: 2)
+        }
+        let url = try result.save(to: resultsDir)
+        print("")
+        for s in result.summaries {
+            let w = s.welch.map { String(format: "  (Welch t = %.2f, p = %@)", $0.t, $0.p < 0.001 ? "< 0.001" : String(format: "%.3f", $0.p)) } ?? ""
+            let f: (Double) -> String = s.metric.contains("bytes") ? { Format.bytes(Int64($0), signed: true) } : { String(format: "%.2f", $0) }
+            print("\(s.metric): relief \(f(s.relief.mean)) ± \(f(s.relief.sd)) vs control \(f(s.control.mean)) ± \(f(s.control.sd))\(w)")
+        }
+        print(style.dim("Saved \(url.path)"))
+    } catch {
+        fail("\(error)", code: 5)
     }
 
 case "version", "--version", "-v":

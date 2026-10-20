@@ -61,3 +61,23 @@ struct StatsTests {
         #expect(abs(sd - 2.138) < 0.001) // sample SD
     }
 }
+
+@Suite("Welch t-test")
+struct WelchTests {
+    @Test func matchesTheTextbookExample() throws {
+        // Welch (1947)-style example used on Wikipedia; reference values computed independently.
+        let a = [27.5, 21.0, 19.0, 23.6, 17.0, 17.9, 16.9, 20.1, 21.9, 22.6, 23.1, 19.6, 19.0, 21.7, 21.4]
+        let b = [27.1, 22.0, 20.8, 23.4, 23.4, 23.5, 25.8, 22.0, 24.8, 20.2, 21.9, 22.1, 22.9, 20.5, 24.4]
+        let r = try #require(Stats.welch(a, b))
+        #expect(abs(r.t - -2.455356) < 1e-5)
+        #expect(abs(r.df - 24.988529) < 1e-5)
+        #expect(abs(r.p - 0.021378) < 1e-5)
+        #expect(abs(r.cohenD - -0.896569) < 1e-5)
+    }
+
+    @Test func identicalSamplesAreNotSignificant() throws {
+        let r = try #require(Stats.welch([1, 2, 3, 4], [1, 2, 3, 4]))
+        #expect(r.p > 0.99)
+        #expect(Stats.welch([1], [1, 2]) == nil)
+    }
+}

@@ -11,10 +11,9 @@ memory-pressure system, finds what your AI agents forgot to close, and warns you
 ram download
 ```
 
-```
-Downloading RAM    ████████████████░░░░░░░░  2.41 GB  380 MB/s  6s left
-✓ Downloaded 2.41 GB of RAM in 17s
-```
+<!-- DEMO:BEGIN -->
+<!-- Filled with the output of a real `ram download` on the author's Mac. -->
+<!-- DEMO:END -->
 
 *Every byte in that number is measured with the same counter Activity Monitor uses. Nothing is
 estimated, ballooned, or `purge`d.*

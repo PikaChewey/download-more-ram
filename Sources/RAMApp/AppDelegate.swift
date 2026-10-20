@@ -1,4 +1,5 @@
 import AppKit
+import UserNotifications
 import Combine
 import RAMKit
 import SwiftUI
@@ -173,6 +174,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .sink { [weak self] state in self?.updateButton(state) }
             .store(in: &observers)
         model.start()
+        // Clicking the warning before the wall opens the panel (only inside the .app: the
+        // notification center aborts in a bare executable).
+        if Bundle.main.bundleURL.pathExtension == "app" { UNUserNotificationCenter.current().delegate = self }
 
         // Our own memory pressure: drop caches.
         let source = DispatchSource.makeMemoryPressureSource(eventMask: [.warning, .critical], queue: .main)
@@ -221,5 +225,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                                          downloading: state.downloading, frame: state.frame)
         button.title = state.text.isEmpty ? "" : " " + state.text
         button.setAccessibilityLabel("Download More RAM: \(state.percent)% to the wall")
+    }
+}
+
+extension AppDelegate: UNUserNotificationCenterDelegate {
+    nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse,
+                                            withCompletionHandler completionHandler: @escaping () -> Void) {
+        DispatchQueue.main.async {
+            MainActor.assumeIsolated {
+                if let button = self.statusItem?.button { self.panelController.show(from: button) }
+            }
+        }
+        completionHandler()
+    }
+
+    nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification,
+                                            withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        completionHandler([.banner, .sound])
     }
 }

@@ -64,6 +64,8 @@ struct ProcessReport: Sendable {
     /// Apps macOS paused at the last wall and never resumed, and what their helpers burn meanwhile.
     var pausedApps: [String]
     var pausedCores: Double
+    /// Apps growing fastest over the last two minutes (for the warning before the wall).
+    var growers: [GrowthTracker.Grower] = []
 
     static let empty = ProcessReport(timestamp: .distantPast, rows: [], totalFootprint: 0, appCount: 0, sessionCount: 0,
                                      sessions: [], leftovers: [], duplicates: [], offers: [], insights: nil,
@@ -184,13 +186,17 @@ final class CachedProcessInfo: ProcessInfoSource, @unchecked Sendable {
 /// Takes process snapshots off the main thread and keeps the CPU history that needs every sample.
 actor ProcessAnalyzer {
     private var cpu = CPUHistory()
+    private var growth = GrowthTracker()
     private let info = CachedProcessInfo()
 
     func analyze(system: SystemSample?, wall: WallStatus?, reliefAvailable: Bool, now: Date = Date()) -> ProcessReport {
         let snap = ProcessSampler.snapshot(includePaths: true, now: now)
         cpu.add(snap)
+        growth.add(snap)
         info.begin(snap, now: now)
-        return Self.report(snap, cpu: cpu, info: info, system: system, wall: wall, reliefAvailable: reliefAvailable, now: now)
+        var r = Self.report(snap, cpu: cpu, info: info, system: system, wall: wall, reliefAvailable: reliefAvailable, now: now)
+        r.growers = growth.top(2)
+        return r
     }
 
     /// Everything derived from one snapshot (shared with the sample data behind `--render-ui`).
@@ -298,6 +304,7 @@ final class AppModel: ObservableObject {
     @Published var message: String?
     @Published var shareNote: String?
     @Published var expanded: Set<String> = []
+    private var lastWallWarning = Date.distantPast
     @Published var showAll = false
     @Published var installing = false
     @Published var downloading = false
@@ -413,6 +420,22 @@ final class AppModel: ObservableObject {
         }
         if Date().timeIntervalSince(lastAnalysis) >= analysisInterval { analyzeProcesses() }
         runAutopilot(status: status, sample: s)
+        warnBeforeTheWall(status: status)
+    }
+
+    /// One notification when the panel is seconds away, autopilot or not, naming who is growing.
+    private func warnBeforeTheWall(status: WallStatus?) {
+        guard live, let status, !downloading, WallWarning.due(status, lastWarning: lastWallWarning, now: Date()) else { return }
+        lastWallWarning = Date()
+        let r = panelOpen ? report : (pendingReport ?? report)
+        let title = WallWarning.title(status)
+        let body = WallWarning.body(status, grower: r.growers.first, biggestName: r.rows.first?.name,
+                                    biggestBytes: r.rows.first?.footprint ?? 0, autopilot: autopilotOn)
+        let notifier = self.notifier
+        Task {
+            _ = await notifier.requestAuthorization()
+            notifier.post(title: title, body: body)
+        }
     }
 
     func analyzeProcesses() {

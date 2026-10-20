@@ -45,3 +45,30 @@ struct GrowthTrackerTests {
         #expect(g.top().isEmpty)
     }
 }
+
+@Suite("Wall warning")
+struct WallWarningTests {
+    static func status(_ pct: Double, eta: Double?, imminent: Bool = false) -> WallStatus {
+        WallStatus(percent: pct, etaSeconds: eta, limitingFactor: .swap, reason: "", imminent: imminent)
+    }
+
+    @Test func warnsBeforeTheWallAndNotTooOften() {
+        let now = Date(timeIntervalSince1970: 1_000_000)
+        #expect(WallWarning.due(Self.status(40, eta: nil, imminent: true), lastWarning: .distantPast, now: now))
+        #expect(WallWarning.due(Self.status(88, eta: 600), lastWarning: .distantPast, now: now))
+        #expect(!WallWarning.due(Self.status(88, eta: 3600), lastWarning: .distantPast, now: now))   // far off in time
+        #expect(!WallWarning.due(Self.status(60, eta: 300), lastWarning: .distantPast, now: now))    // far off in space
+        #expect(!WallWarning.due(Self.status(40, eta: nil, imminent: true), lastWarning: now.addingTimeInterval(-600), now: now))
+        #expect(WallWarning.due(Self.status(40, eta: nil, imminent: true), lastWarning: now.addingTimeInterval(-1801), now: now))
+    }
+
+    @Test func namesWhoIsGrowing() {
+        let g = GrowthTracker.Grower(app: "Claude", bytesPerMinute: 1_200 * 1_048_576, footprint: 40 << 30, driver: "python3.12 ×23")
+        let body = WallWarning.body(Self.status(40, eta: nil, imminent: true), grower: g, biggestName: "Firefox", biggestBytes: 13 << 30, autopilot: false)
+        #expect(body.contains("Growing fastest: Claude +1.17 GB/min (python3.12 ×23)."))
+        #expect(!body.contains("Firefox"))
+        #expect(WallWarning.body(Self.status(90, eta: 420), grower: nil, biggestName: "Firefox", biggestBytes: 13 << 30, autopilot: true)
+            == "About 7m 00s left at this rate. Using the most: Firefox 13.00 GB. Autopilot is on.")
+        #expect(WallWarning.title(Self.status(40, eta: nil, imminent: true)) == "Your Mac is about to run out of memory")
+    }
+}

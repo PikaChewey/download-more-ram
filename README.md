@@ -1,44 +1,45 @@
 <h1 align="center">Download More RAM</h1>
 
 <p align="center"><b>The meme, but it actually works. And it shows receipts.</b><br>
-A native macOS menu bar app + <code>ram</code> CLI that gets your apps to give memory back using macOS's own
-memory-pressure system, finds what your AI agents forgot to close, and warns you before
-"Your system has run out of application memory".</p>
+A native macOS menu bar app + <code>ram</code> CLI that gets your apps to give memory back, finds what your AI
+agents left running, and warns you before "Your system has run out of application memory".</p>
 
-<p align="center"><img src="docs/demo.svg" alt="ram download: a terminal download bar filling with real, measured gigabytes" width="760"></p>
-
-```bash
-ram download
-```
+<p align="center"><img src="docs/demo.svg" alt="ram download: a real recorded run, the kernel signal then a Firefox GPU restart, 921.2 MB back" width="760"></p>
 
 <!-- DEMO:BEGIN -->
 <!-- Filled with the output of a real `ram download` on the author's Mac. -->
 <!-- DEMO:END -->
 
-*Every byte in that number is measured with the same counter Activity Monitor uses. Nothing is
-estimated, ballooned, or `purge`d.*
+## What it found on the author's 16 GB MacBook (one day, 2026-10-20)
+
+- **16 copies of the same MCP server, 3.15 GB.** Every Claude Code session starts its own copy of every stdio
+  MCP server you configure globally. `ram agents` lists them and `ram doctor` names the config to change.
+- **Firefox's GPU process had grown to 7.15 GB over 4 days.** One restart (Firefox relaunches it itself):
+  6.02 GB back ([measurement](bench/results/2026-10-20T12-42-firefox-gpu-restart.json)).
+- **macOS "paused" 5 apps at the memory wall and left them frozen for 2 hours** while their helper processes
+  kept burning about 6 CPU cores on battery. `ram resume` makes the same call as the panel's Resume button.
+- **The wall was hit 6 times in 7 days.** `ram doctor` reads the system log and lists every time.
 
 ## Why your Mac says it ran out of memory (it's not what you think)
 
-macOS compresses idle memory, then pages it out to swap files it adds 1 GB at a time. The
-"out of application memory" panel appears when **swap is nearly full and macOS fails to add the
-next swapfile**, or when the compressor hits its ceiling (about 49 GB of compressed data on a
-16 GB Mac). Then the kernel **pauses your biggest apps**, one every 5 seconds, until you click
-Resume. Free disk space is usually fine; on the Mac this was built on, the panel showed up with
-93 GB free. [The kernel source, line by line →](docs/HOW_IT_WORKS.md)
+macOS compresses idle memory, then pages it out to swapfiles it adds 1 GB at a time. The "out of application
+memory" panel appears when **swap is nearly full and macOS fails to add the next swapfile**, or when the
+compressor hits its ceiling (about 49 GB of compressed data on a 16 GB Mac). The kernel then **pauses your
+biggest app every 5 seconds** until you click Resume. Free disk space is usually not the problem: the panel showed
+up here with 93 GB free. [The kernel source, line by line →](docs/HOW_IT_WORKS.md)
 
 ## What it does
 
 | | |
 |---|---|
-| **Downloads RAM** | Sends macOS's own *critical* memory-pressure signal for 10 seconds (the root-only switch behind Apple's `memory_pressure -S`), then measures what every app gave back. Safari and WebKit apps drop caches and garbage-collect, Chrome-family browsers discard a background tab, Electron GPU and network processes drop caches, and the kernel purges volatile memory. Normal pressure is always restored. |
-| **Shows the wall** | "38% to the wall", the actual limit the kernel enforces, the time until you hit it at the current rate, which app macOS will pause first, and a warning when swap is full and no new swapfile has shown up. |
-| **Resumes frozen apps** | macOS leaves apps paused after the panel, even hours after memory recovers, and only the main process is paused: on the author's Mac, a "paused" ChatGPT's helpers burned 4 CPU cores on battery for two hours. `ram resume` makes the same call as the panel's Resume button, and only for processes the kernel itself paused. |
-| **Finds what your agents left running** | Memory per Claude Code / Codex / Cursor / Gemini session (its title in the Claude app, last activity, what it spawned), sessions you archived that are still running, and orphaned MCP servers, dev servers and `http.server`s, with a safe Quit. |
-| **Fixes Firefox** | Firefox's low-memory tab unloader is **off** in release builds (`browser.lowMemoryResponseMask = 0`). One command turns it on. Its GPU process can grow to gigabytes, and Firefox is built to relaunch it. |
+| **Downloads RAM** | `ram download` sends macOS's own *critical* memory-pressure signal for 10 s (the root-only switch behind Apple's `memory_pressure -S`), then pulls the levers you allow, one at a time, each measured on its own. The receipt's headline is exactly the sum of the levers. |
+| **Levers** | Firefox GPU process restart · quit leftover servers your agents forgot · quit agent sessions you archived that are still running · resume apps macOS paused. Anything that ends a process needs your yes; nothing runs on its own. |
+| **Shows the wall** | "38% to the wall" from the limits the kernel actually checks, the time until you hit it, which app macOS will pause first, and a warning the moment swap is full and no new swapfile appears. |
+| **Agents** | Memory per Claude Code / Codex / Cursor / Gemini session with its real title, archived-but-running sessions, duplicate MCP servers, orphaned dev servers. |
+| **Firefox** | Turns on Firefox's low-memory tab unloader (shipped **off** outside Nightly: `browser.lowMemoryResponseMask = 0`). |
 | **Autopilot** | When you're heading for the wall, it downloads RAM before macOS starts pausing apps. |
 
-## Who actually responds (read from source, not vibes)
+## Who actually responds to the signal (read from source, not vibes)
 
 | App type | On the signal |
 |---|---|
@@ -46,11 +47,9 @@ Resume. Free disk space is usually fine; on the Mac this was built on, the panel
 | Chrome, Opera, Brave, Edge | Discard one background tab per critical notification; GPU caches |
 | Electron (Claude, Discord, Slack, VS Code) | GPU + network caches only; **page processes never hear it on macOS** |
 | Firefox (release) | Nothing, until `ram firefox unloader on` |
-| Node / Bun (agents, MCP servers) | Nothing; quitting leftovers is what works |
+| Node / Bun (agents, MCP servers) | Nothing; the levers are what works |
 
-So results depend on what you run, and your receipt shows exactly which apps gave memory back.
-
-## Numbers
+## The honest numbers
 
 <!-- BENCH:BEGIN -->
 _Benchmarks are generated by `ram bench report` from saved runs; see [docs/BENCHMARKS.md](docs/BENCHMARKS.md)._
@@ -60,45 +59,52 @@ _Benchmarks are generated by `ram bench report` from saved runs; see [docs/BENCH
 
 ```bash
 git clone https://github.com/PikaChewey/download-more-ram && cd download-more-ram
-scripts/build.sh                        # signs with your Apple Development identity, or ad hoc
-sudo build/Products.noindex/bin/ram helper install   # once: lets downloads run without sudo
-```
-
-Then start with:
-
-```bash
+scripts/install.sh            # builds, signs, puts the app in /Applications and `ram` in ~/.local/bin
+sudo ram helper install       # once: the only step that needs your password
 ram doctor
 ```
 
 ## Commands
 
 ```
-ram                      memory, swap, distance to the wall, top apps
-ram doctor               your wall history, what's using memory, fixes ranked by size
-ram download             the memory-pressure signal + a measured receipt
-ram agents               AI agent sessions and the leftovers they forgot
-ram resume               resume apps macOS paused at the wall
-ram firefox unloader on  let Firefox unload idle tabs under memory pressure
-ram watch --autopilot    download automatically when the wall is near
-ram bench real           relief vs control runs with Welch's t-test
+ram                         memory, swap, distance to the wall, top apps
+ram doctor [--fast]         wall history, what's using memory, fixes ranked by size
+ram download [--levers firefox-gpu,leftovers,archived,resume]
+                            the kernel's memory-pressure signal + the levers you allow, with a receipt
+ram download --dry-run      the same measurement without the signal: your Mac's natural drift
+ram agents                  agent sessions, duplicate servers, leftovers
+ram resume                  resume apps macOS paused at the wall
+ram firefox unloader on     let Firefox unload idle tabs under memory pressure
+ram watch --autopilot       download automatically when the wall is near
+ram bench real              relief vs control runs with Welch's t-test
 ```
 
 ## What it won't do
 
-- **No `purge`.** It only flushes the file cache, which macOS reclaims on its own anyway. It
-  can't touch app memory or swap. Most "RAM cleaners" are a button for it.
+- **No `purge`.** It only flushes the file cache, which macOS reclaims on its own anyway. Most "RAM cleaners" are
+  a button for it.
 - **No balloon allocations, no "free RAM" bragging.** Free RAM is wasted RAM.
-- **Never kills or pauses anything without a click.**
+- **Nothing is killed or paused without a click.**
 - **No network, no telemetry.**
 
 ## Safety
 
-The root helper accepts four calls: send the signal (warn or critical, 1–30 s, at most 30 per
-hour), restore normal, report status, and resume a process the kernel paused at the wall. It
-restores normal pressure on every path, including after a crash. [docs/SECURITY.md](docs/SECURITY.md)
+The root helper accepts four calls: send the signal (warn or critical, 1–30 s, at most 30 per hour), restore
+normal, report status, and resume a process the kernel paused at the wall. It restores normal pressure on every
+path, including Ctrl-C, crashes and SIGKILL. What a download costs (apps drop caches, Chromium discards a background
+tab, idle daemons exit and relaunch) is listed in [docs/SECURITY.md](docs/SECURITY.md).
 
-## Requirements
+## FAQ
 
-Apple silicon, macOS 14 or later. Built and tested on macOS 26.5 (MacBook M5, 16 GB).
+**Is this a RAM cleaner?** No. It never purges caches itself; it asks apps through the kernel's own signal and
+reports per app what came back, including when nothing did.
+
+**Why is the signal's number small on my Mac?** If you mostly run Electron apps and agents, most of them can't hear
+the signal (see the table). The levers and the agent insights are where the gigabytes are.
+
+**Is restarting Firefox's GPU process safe?** Firefox is built to relaunch it; WebGL and canvas content on open
+pages resets. A restart after 30 s of uptime does not count toward Firefox's crash limit.
+
+**Intel?** Apple silicon, macOS 14 or later. Built and tested on macOS 26.5 (MacBook M5, 16 GB).
 
 MIT License.

@@ -109,7 +109,7 @@ struct ResumeTests {
     @Test func onlyTheKernelsOwnPauseQualifies() {
         #expect(PausedApps.mayResume(0x1405410))      // Claude/Firefox/... at 06:45 on the target
         #expect(PausedApps.mayResume(0xa5405410))     // Raycast's WebKit helpers
-        #expect(!PausedApps.mayResume(0x405410))      // registered to be paused, not paused
+        #expect(!PausedApps.mayResume(0x1404410))     // registered to be paused (0x400), not paused
         #expect(!PausedApps.mayResume(0))
     }
 

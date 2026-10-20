@@ -74,7 +74,8 @@ public enum Render {
         return out
     }
 
-    public static func agents(_ sessions: [AgentSession], leftovers: [Leftover], style: Style) -> String {
+    public static func agents(_ sessions: [AgentSession], leftovers: [Leftover], duplicates: [DuplicateServer] = [],
+                              style: Style) -> String {
         var out = ""
         if sessions.isEmpty { out += style.dim("No AI agent sessions running.") + "\n" }
         else {
@@ -97,6 +98,12 @@ public enum Render {
                     tail.append(cpu > CPUHistory.activeFraction ? "working (\(Format.percent(cpu * 100)) CPU)" : "quiet")
                 }
                 out += line + style.dim(" · " + tail.joined(separator: " · ")) + "\n"
+            }
+        }
+        if !duplicates.isEmpty {
+            out += "\n" + style.bold("Duplicate servers (one per session)") + "\n"
+            for d in duplicates {
+                out += "  \(lpad("\(d.count)×", 4)) \(pad(d.command, 28)) \(lpad(Format.bytes(d.bytes), 9))  " + style.dim("across \(d.sessions) sessions") + "\n"
             }
         }
         if !leftovers.isEmpty {
@@ -193,6 +200,9 @@ public enum Render {
             if d.archivedAgentCount > 0 { out += "; " + style.amber("\(d.archivedAgentCount) archived but still running hold \(Format.bytes(d.archivedAgentBytes))") }
             if d.quietAgentCount > 0 { out += "; \(d.quietAgentCount) quiet for > 6 h hold \(Format.bytes(d.quietAgentBytes))" }
             out += "\n"
+        }
+        for dup in d.duplicates.prefix(2) {
+            out += "  \(dup.count) copies of \(dup.command) (one per agent session) hold \(Format.bytes(dup.bytes))\n"
         }
         if let ff = d.firefoxBytes {
             out += "  Firefox \(Format.bytes(ff))"

@@ -207,3 +207,38 @@ struct ClaudeDesktopSessionTests {
         #expect(s.lastActive == Date(timeIntervalSince1970: 0))
     }
 }
+
+@Suite("Duplicate servers")
+struct DuplicateServerTests {
+    @Test func countsTheSameMCPServerAcrossSessions() {
+        struct Info: ProcessInfoSource {
+            func cwd(pid: Int32) -> String? { nil }
+            func argv(pid: Int32) -> [String]? {
+                pid >= 1000 ? ["node", "/opt/homebrew/bin/rea", "mcp"] : (pid >= 900 ? ["/bin/zsh", "-c", "x"] : nil)
+            }
+        }
+        let sessions: [AgentSession] = (0..<4).map { i in
+            let head = Int32(100 + i)
+            let members = [rec(head, name: "claude", path: "/Users/b/.local/bin/claude", mb: 400),
+                           rec(Int32(1000 + i), ppid: head, name: "node", path: "/opt/homebrew/bin/node", mb: 202, resp: head),
+                           rec(Int32(900 + i), ppid: head, name: "zsh", path: "/bin/zsh", mb: 1, resp: head)]
+            return AgentSession(id: head, tool: .claudeCode, host: "Claude", cwd: nil, label: "s\(i)", footprint: 603 << 20,
+                                members: members, topChildren: "", ageS: 0, idleS: 0)
+        }
+        let d = AgentClassifier.duplicateServers(sessions, info: Info())
+        #expect(d.count == 1)
+        #expect(d.first?.command == "rea mcp")
+        #expect(d.first?.count == 4)
+        #expect(d.first?.sessions == 4)
+        #expect(d.first?.bytes == UInt64(4 * 202) << 20)
+        #expect(AgentClassifier.duplicateServers(Array(sessions.prefix(2)), info: Info()).isEmpty)   // fewer than 3 sessions
+    }
+
+    @Test func serverKeys() {
+        let npx = rec(1, name: "npx", path: "/opt/homebrew/bin/npx", mb: 50)
+        #expect(AgentClassifier.serverKey(npx, argv: ["npx", "-y", "@modelcontextprotocol/server-github"]) == "server-github")
+        let native = rec(2, name: "github-mcp-server", path: "/opt/homebrew/bin/github-mcp-server", mb: 30)
+        #expect(AgentClassifier.serverKey(native, argv: ["github-mcp-server", "stdio"]) == "github-mcp-server stdio")
+        #expect(AgentClassifier.serverKey(rec(3, name: "zsh", path: "/bin/zsh", mb: 1), argv: ["zsh"]) == nil)
+    }
+}

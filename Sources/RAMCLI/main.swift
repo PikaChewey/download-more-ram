@@ -3,7 +3,7 @@ import Darwin
 import Foundation
 import RAMKit
 
-let version = "1.0.0"
+let version = "1.1.0"
 setvbuf(stdout, nil, _IOLBF, 0)   // line-buffered even when piped (watch, bench logs)
 signal(SIGPIPE, SIG_IGN)          // `ram download | head` must never kill a hold: writes just fail with EPIPE
 let args = Array(CommandLine.arguments.dropFirst())
@@ -145,10 +145,10 @@ case "agents":
         exit(failed == 0 ? 0 : 4)
     }
     if flags.contains("--json") {
-        struct AgentsJSON: Encodable { var sessions: [AgentSession]; var leftovers: [Leftover] }
-        printJSON(AgentsJSON(sessions: sessions, leftovers: leftovers))
+        struct AgentsJSON: Encodable { var sessions: [AgentSession]; var leftovers: [Leftover]; var duplicates: [DuplicateServer] }
+        printJSON(AgentsJSON(sessions: sessions, leftovers: leftovers, duplicates: AgentClassifier.duplicateServers(sessions)))
     } else {
-        print(Render.agents(sessions, leftovers: leftovers, style: style), terminator: "")
+        print(Render.agents(sessions, leftovers: leftovers, duplicates: AgentClassifier.duplicateServers(sessions), style: style), terminator: "")
     }
 
 case "download":
@@ -286,11 +286,13 @@ case "doctor":
     usleep(fast ? 250_000 : 1_000_000)
     let snap = ProcessSampler.snapshot()
     cpu.add(snap)
+    let doctorSessions = AgentClassifier.sessions(snap, cpuHistory: cpu)
     let diagnosis = Diagnosis.make(system: system, wall: wallModel.status(), snapshot: snap,
-                                   sessions: AgentClassifier.sessions(snap, cpuHistory: cpu),
+                                   sessions: doctorSessions,
                                    leftovers: AgentClassifier.leftovers(snap, cpuHistory: cpu),
                                    reliefAvailable: await ReliefAvailability.detect().backend() != nil,
-                                   firefoxProfile: FirefoxLevers.defaultProfile(), cpu: cpu)
+                                   firefoxProfile: FirefoxLevers.defaultProfile(), cpu: cpu,
+                                   duplicates: AgentClassifier.duplicateServers(doctorSessions))
     if flags.contains("--json") {
         struct DoctorJSON: Encodable { var events: [WallEvent]; var diagnosis: Diagnosis }
         printJSON(DoctorJSON(events: events, diagnosis: diagnosis))

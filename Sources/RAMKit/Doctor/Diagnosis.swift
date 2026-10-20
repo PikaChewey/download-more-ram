@@ -26,6 +26,8 @@ public struct Diagnosis: Codable, Sendable {
     /// Apps whose main process macOS paused while their helper processes keep burning CPU
     /// (observed 2026-10-20: ChatGPT's Codex helpers at ~4 cores for hours, on battery).
     public var spinningWhilePaused: [SpinningApp]
+    /// The same MCP/dev server running once per agent session.
+    public var duplicates: [DuplicateServer] = []
     public var fixes: [Fix]
 
     public struct SpinningApp: Codable, Sendable, Equatable {
@@ -44,7 +46,7 @@ public struct Diagnosis: Codable, Sendable {
 
     public static func make(system: SystemSample, wall: WallStatus?, snapshot: ProcessSnapshot, sessions: [AgentSession],
                             leftovers: [Leftover], reliefAvailable: Bool, firefoxProfile: URL?, cpu: CPUHistory? = nil,
-                            now: Date = Date()) -> Diagnosis {
+                            duplicates: [DuplicateServer] = [], now: Date = Date()) -> Diagnosis {
         let groups = AppGrouper.group(snapshot)
         var spinning: [SpinningApp] = []
         if let cpu {
@@ -76,6 +78,11 @@ public struct Diagnosis: Codable, Sendable {
         if let gpu, gpu.footprint > 1 << 30 {
             fixes.append(Fix(title: "Restart Firefox's GPU process (Firefox relaunches it; WebGL/canvas reset)",
                              estimateBytes: gpu.footprint, how: "ram firefox gpu-restart"))
+        }
+        for d in duplicates.prefix(2) {
+            fixes.append(Fix(title: "\(d.count) copies of the same server (\(d.command)) across \(d.sessions) agent sessions: each session starts its own",
+                             estimateBytes: d.bytes - d.bytes / UInt64(max(1, d.count)),
+                             how: "configure it only for the projects that use it (not for every session), or close idle sessions"))
         }
         if !archived.isEmpty {
             let bytes = archived.reduce(UInt64(0)) { $0 + $1.footprint }
@@ -109,6 +116,7 @@ public struct Diagnosis: Codable, Sendable {
             quietAgentCount: quiet.count, quietAgentBytes: quiet.reduce(0) { $0 + $1.footprint },
             archivedAgentCount: archived.count, archivedAgentBytes: archived.reduce(0) { $0 + $1.footprint },
             leftovers: leftovers, firefoxBytes: firefox?.footprint, firefoxGPUBytes: gpu?.footprint,
-            firefoxUnloaderOn: unloader, reliefAvailable: reliefAvailable, spinningWhilePaused: spinning, fixes: fixes)
+            firefoxUnloaderOn: unloader, reliefAvailable: reliefAvailable, spinningWhilePaused: spinning,
+            duplicates: duplicates, fixes: fixes)
     }
 }

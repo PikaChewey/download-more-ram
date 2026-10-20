@@ -1,15 +1,17 @@
 import Foundation
 
 public enum Format {
-    /// Decimal units like Activity Monitor: "4.11 GB", "97.3 MB", "512 KB".
+    /// Binary units with Apple's labels, as Activity Monitor and the Force Quit dialog show them:
+    /// 16 GiB of RAM reads "16.00 GB"; "97.3 MB" is 97.3 MiB.
     public static func bytes<T: BinaryInteger>(_ raw: T, signed: Bool = false) -> String {
         let value = Int64(clamping: raw)
         let sign = value < 0 ? "-" : (signed && value > 0 ? "+" : "")
         let v = Double(value.magnitude)
         let body: String
-        if v >= 1e9 { body = String(format: "%.2f GB", v / 1e9) }
-        else if v >= 1e6 { body = String(format: "%.1f MB", v / 1e6) }
-        else if v >= 1e3 { body = String(format: "%.0f KB", v / 1e3) }
+        let kib = 1024.0, mib = kib * 1024, gib = mib * 1024
+        if v >= gib * 0.9995 { body = String(format: "%.2f GB", v / gib) }
+        else if v >= mib * 0.9995 { body = String(format: "%.1f MB", v / mib) }
+        else if v >= kib { body = String(format: "%.0f KB", v / kib) }
         else { body = "\(Int64(v)) B" }
         return sign + body
     }

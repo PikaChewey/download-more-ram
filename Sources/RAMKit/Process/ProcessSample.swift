@@ -32,13 +32,30 @@ public struct ProcessRecord: Codable, Sendable, Hashable, Identifiable {
     /// The process macOS holds responsible (the app that launched a helper); self when unknown.
     public var responsiblePid: Int32
     public var coalitionId: UInt64?
+    /// `pbi_flags`: includes the pcontrol bits xnu uses at the memory wall (docs/research/xnu.md).
+    public var bsdFlags: UInt32 = 0
+
+    public enum PauseAction: String, Codable, Sendable { case none, throttle, suspend, kill }
+
+    /// What macOS will do to this process when it runs out of paging space (PROC_FLAG_PC_*).
+    public var pauseAction: PauseAction {
+        switch bsdFlags & 0x600 {
+        case 0x600: .kill
+        case 0x400: .suspend
+        case 0x200: .throttle
+        default: .none
+        }
+    }
+
+    /// macOS suspended this process at the memory wall and has not resumed it (PROC_FLAG_PA_SUSP).
+    public var pausedByWall: Bool { bsdFlags & 0x1000 != 0 }
 
     public var id: ProcessKey { key }
     public var key: ProcessKey { ProcessKey(pid: pid, startTime: startTime) }
 
     public init(pid: Int32, ppid: Int32, uid: UInt32, name: String, path: String?, startTime: UInt64,
                 footprint: UInt64, lifetimeMaxFootprint: UInt64 = 0, residentBytes: UInt64 = 0,
-                cpuTimeNs: UInt64 = 0, responsiblePid: Int32, coalitionId: UInt64? = nil) {
+                cpuTimeNs: UInt64 = 0, responsiblePid: Int32, coalitionId: UInt64? = nil, bsdFlags: UInt32 = 0) {
         self.pid = pid
         self.ppid = ppid
         self.uid = uid
@@ -51,6 +68,7 @@ public struct ProcessRecord: Codable, Sendable, Hashable, Identifiable {
         self.cpuTimeNs = cpuTimeNs
         self.responsiblePid = responsiblePid
         self.coalitionId = coalitionId
+        self.bsdFlags = bsdFlags
     }
 }
 
@@ -137,7 +155,8 @@ public enum ProcessSampler {
             residentBytes: ru.resident_size,
             cpuTimeNs: ru.user_time_ns &+ ru.system_time_ns,
             responsiblePid: responsible > 0 ? responsible : pid,
-            coalitionId: hasCoalition ? coalition : nil
+            coalitionId: hasCoalition ? coalition : nil,
+            bsdFlags: bsd.flags
         ))
     }
 

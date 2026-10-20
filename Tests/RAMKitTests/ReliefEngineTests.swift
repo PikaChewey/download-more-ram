@@ -111,15 +111,15 @@ struct ReceiptTests {
         Receipt(id: "2026-10-20T04-12-03", startedAt: Date(timeIntervalSince1970: 1_792_400_000), durationS: 17.2,
                 backend: "helper", level: .critical, holdMs: 10_000,
                 machine: MachineInfo(model: "Mac17,2", chip: "Apple M5", memoryBytes: 16 << 30, osVersion: "macOS 26.5.2"),
-                headlineBytes: 2_150_000_000, grossFreedBytes: 2_250_000_000,
-                apps: [AppDelta(id: 100, name: "Firefox", kind: .app, before: 15_900_000_000, after: 14_060_000_000,
+                headlineBytes: 2_308_544_921, grossFreedBytes: 2_415_919_104,
+                apps: [AppDelta(id: 100, name: "Firefox", kind: .app, before: 17_072_495_001, after: 15_096_778_342,
                                 busy: false, exitedMembers: 3, newMembers: 0),
-                       AppDelta(id: 400, name: "Discord", kind: .app, before: 1_400_000_000, after: 990_000_000,
+                       AppDelta(id: 400, name: "Discord", kind: .app, before: 1_503_238_553, after: 1_063_004_405,
                                 busy: false, exitedMembers: 0, newMembers: 0),
-                       AppDelta(id: 500, name: "Mail", kind: .app, before: 300_000_000, after: 400_000_000,
+                       AppDelta(id: 500, name: "Mail", kind: .app, before: 314_572_800, after: 419_430_400,
                                 busy: false, exitedMembers: 0, newMembers: 0)],
-                excludedBusy: [AppDelta(id: 300, name: "Claude Code", kind: .agentSession, before: 12_000_000_000,
-                                        after: 9_000_000_000, busy: true, exitedMembers: 1, newMembers: 0)],
+                excludedBusy: [AppDelta(id: 300, name: "Claude Code", kind: .agentSession, before: 12_884_901_888,
+                                        after: 9_663_676_416, busy: true, exitedMembers: 1, newMembers: 0)],
                 newApps: ["Preview"], goneApps: [], systemBefore: fakeSystem(swapUsedGB: 9.9),
                 systemAfter: fakeSystem(swapUsedGB: 8.1), wallBefore: 91, wallAfter: 78)
     }
@@ -129,7 +129,7 @@ struct ReceiptTests {
         defer { try? FileManager.default.removeItem(at: dir) }
         let url = try sample().save(to: dir)
         let loaded = try Receipt.load(url)
-        #expect(loaded.headlineBytes == 2_150_000_000)
+        #expect(loaded.headlineBytes == 2_308_544_921)
         #expect(loaded.apps.count == 3)
         #expect(FileManager.default.fileExists(atPath: dir.appendingPathComponent("2026-10-20T04-12-03.md").path))
         #expect(Receipt.latest(in: dir)?.id == "2026-10-20T04-12-03")

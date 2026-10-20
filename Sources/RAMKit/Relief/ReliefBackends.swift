@@ -21,8 +21,12 @@ public struct DirectSysctlBackend: ReliefBackend {
         dm_restore_guard_arm(Trigger.sysctlName, Trigger.restoreValue)
         let err = Trigger.write(Trigger.signalValue(level))
         guard err == 0 else {
+            // xnu sets manual-testing mode *before* validating the value, so any write that reached
+            // the handler (anything but EPERM from the root check) must still be followed by a reset.
+            let restored = err == EPERM ? 0 : Trigger.write(Trigger.restoreValue)
             dm_restore_guard_disarm()
-            if let marker { try? FileManager.default.removeItem(atPath: marker) }
+            if restored == 0, let marker { try? FileManager.default.removeItem(atPath: marker) }
+            if restored != 0 { throw ReliefError.restoreFailed(restored) }
             throw err == EPERM ? ReliefError.notPermitted : ReliefError.kernel(err)
         }
         var waitError: Error?

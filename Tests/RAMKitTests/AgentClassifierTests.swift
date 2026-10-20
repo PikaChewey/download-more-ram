@@ -133,3 +133,33 @@ struct AgentToolTests {
         #expect(AgentTool.detect(name: "node", path: "/opt/homebrew/bin/node", argv: ["node", "server.js"]) == nil)
     }
 }
+
+@Suite("Claude transcripts")
+struct ClaudeTranscriptTests {
+    @Test func sessionIDFromArgv() {
+        #expect(ClaudeTranscripts.sessionID(argv: ["claude", "--resume=0a458e4b-fd9b-435a-96c4-bdc4a2d66e4a"]) == "0a458e4b-fd9b-435a-96c4-bdc4a2d66e4a")
+        #expect(ClaudeTranscripts.sessionID(argv: ["claude", "--session-id", "35984215-219b"]) == "35984215-219b")
+        #expect(ClaudeTranscripts.sessionID(argv: ["claude", "--resume=abc12345", "--fork-session"]) == nil)
+        #expect(ClaudeTranscripts.sessionID(argv: ["claude", "--verbose"]) == nil)
+    }
+
+    @Test func lastActivityIsTheTranscriptMtime() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("ram-projects-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let dir = root.appendingPathComponent("-Users-bryan")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let file = dir.appendingPathComponent("0a458e4b-fd9b-435a-96c4-bdc4a2d66e4a.jsonl")
+        try Data("{}\n".utf8).write(to: file)
+        let when = Date(timeIntervalSince1970: 1_792_458_494)
+        try FileManager.default.setAttributes([.modificationDate: when], ofItemAtPath: file.path)
+        #expect(ClaudeTranscripts.lastActivity(sessionID: "0a458e4b-fd9b-435a-96c4-bdc4a2d66e4a", projectsDir: root) == when)
+        #expect(ClaudeTranscripts.lastActivity(sessionID: "../../etc/passwd", projectsDir: root) == nil)
+    }
+
+    @Test func homeFolderLabel() {
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        #expect(AgentClassifier.label(forCwd: home) == "~")
+        #expect(AgentClassifier.label(forCwd: home + "/Projects/stdout") == "stdout")
+        #expect(AgentClassifier.label(forCwd: "/") == "/")
+    }
+}

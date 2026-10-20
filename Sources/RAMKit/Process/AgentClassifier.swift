@@ -4,37 +4,96 @@ import Foundation
 public protocol ProcessInfoSource: Sendable {
     func cwd(pid: Int32) -> String?
     func argv(pid: Int32) -> [String]?
+    func transcriptActivity(sessionID: String) -> Date?
+}
+
+extension ProcessInfoSource {
+    public func transcriptActivity(sessionID: String) -> Date? { nil }
 }
 
 public struct LiveProcessInfo: ProcessInfoSource {
     public init() {}
     public func cwd(pid: Int32) -> String? { ProcessSampler.cwd(pid: pid) }
     public func argv(pid: Int32) -> [String]? { ProcessSampler.argv(pid: pid) }
+    public func transcriptActivity(sessionID: String) -> Date? { ClaudeTranscripts.lastActivity(sessionID: sessionID) }
 }
 
-/// When each process last used CPU (more than 1 ms since its last active sample).
+/// When each process was last *active*: using more than `activeFraction` of a core between two
+/// samples. A plain "CPU went up" test is useless here: every idle Claude Code session still burns
+/// 0.4-0.9% of a core on timers (measured on the target, 2026-10-20), working ones 1.1-3.6%.
 public struct CPUHistory: Sendable {
-    private var lastActive: [ProcessKey: (cpu: UInt64, at: Date)] = [:]
+    public static let activeFraction = 0.01
+
+    private var previous: [ProcessKey: (cpu: UInt64, at: Date)] = [:]
+    private var lastActive: [ProcessKey: Date] = [:]
+    private var firstSeen: [ProcessKey: Date] = [:]
+    private var rate: [ProcessKey: Double] = [:]
 
     public init() {}
 
     public mutating func add(_ s: ProcessSnapshot) {
-        var next: [ProcessKey: (cpu: UInt64, at: Date)] = [:]
-        next.reserveCapacity(s.records.count)
+        var nextPrev: [ProcessKey: (cpu: UInt64, at: Date)] = [:]
+        var nextActive: [ProcessKey: Date] = [:]
+        var nextFirst: [ProcessKey: Date] = [:]
+        var nextRate: [ProcessKey: Double] = [:]
         for r in s.records {
-            if let prev = lastActive[r.key], r.cpuTimeNs <= prev.cpu + 1_000_000 {
-                next[r.key] = prev
-            } else {
-                next[r.key] = (r.cpuTimeNs, s.timestamp)
+            let k = r.key
+            nextFirst[k] = firstSeen[k] ?? s.timestamp
+            if let a = lastActive[k] { nextActive[k] = a }
+            if let p = previous[k] {
+                let dt = s.timestamp.timeIntervalSince(p.at)
+                if dt > 0 {
+                    let f = Double(r.cpuTimeNs &- min(r.cpuTimeNs, p.cpu)) / 1e9 / dt
+                    nextRate[k] = f
+                    if f > Self.activeFraction { nextActive[k] = s.timestamp }
+                }
             }
+            nextPrev[k] = (r.cpuTimeNs, s.timestamp)
         }
-        lastActive = next
+        previous = nextPrev
+        lastActive = nextActive
+        firstSeen = nextFirst
+        rate = nextRate
     }
 
-    /// Seconds since the process last used CPU; 0 when it has never been sampled.
+    /// Seconds since the process was last active (since first sighting if never seen active).
     public func idleSeconds(_ key: ProcessKey, now: Date) -> Double {
-        guard let at = lastActive[key]?.at else { return 0 }
-        return max(0, now.timeIntervalSince(at))
+        guard let since = lastActive[key] ?? firstSeen[key] else { return 0 }
+        return max(0, now.timeIntervalSince(since))
+    }
+
+    /// CPU use between the last two samples, as a fraction of one core.
+    public func cpuFraction(_ key: ProcessKey) -> Double? { rate[key] }
+}
+
+/// Last activity of a Claude Code session from its transcript (~/.claude/projects/*/<id>.jsonl is
+/// appended on every message). Only for sessions started with --resume/--session-id; a forked
+/// session writes to a new id we cannot see, so callers fall back to CPU.
+public enum ClaudeTranscripts {
+    public static func sessionID(argv: [String]) -> String? {
+        if argv.contains("--fork-session") { return nil }
+        for (i, a) in argv.enumerated() {
+            for flag in ["--resume", "--session-id"] {
+                if a.hasPrefix(flag + "=") { return String(a.dropFirst(flag.count + 1)) }
+                if a == flag, i + 1 < argv.count { return argv[i + 1] }
+            }
+        }
+        return nil
+    }
+
+    public static func lastActivity(sessionID: String, projectsDir: URL = defaultProjectsDir) -> Date? {
+        guard sessionID.count >= 8, !sessionID.contains("/") else { return nil }
+        let fm = FileManager.default
+        guard let dirs = try? fm.contentsOfDirectory(atPath: projectsDir.path) else { return nil }
+        for d in dirs {
+            let file = projectsDir.appendingPathComponent(d).appendingPathComponent("\(sessionID).jsonl").path
+            if let attrs = try? fm.attributesOfItem(atPath: file), let m = attrs[.modificationDate] as? Date { return m }
+        }
+        return nil
+    }
+
+    public static var defaultProjectsDir: URL {
+        FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".claude/projects", isDirectory: true)
     }
 }
 
@@ -50,6 +109,10 @@ public struct AgentSession: Codable, Sendable, Identifiable {
     public var topChildren: String
     public var ageS: Double
     public var idleS: Double
+    /// CPU use of the session process between the last two samples (fraction of a core).
+    public var cpuFraction: Double?
+    /// From the session transcript, when known.
+    public var lastActive: Date?
 }
 
 /// A process that probably outlived its purpose (spec 5.4). Never acted on without a click.
@@ -97,12 +160,16 @@ public enum AgentClassifier {
             }
             let list = members.values.sorted { $0.footprint > $1.footprint }
             let cwd = info.cwd(pid: pid)
-            let label = cwd.map { ($0 as NSString).lastPathComponent }.flatMap { $0.isEmpty ? nil : $0 } ?? tool.displayName
+            let lastActive = tool == .claudeCode
+                ? info.argv(pid: pid).flatMap(ClaudeTranscripts.sessionID).flatMap { info.transcriptActivity(sessionID: $0) }
+                : nil
+            let label = cwd.map(Self.label(forCwd:)) ?? tool.displayName
             return AgentSession(
                 id: pid, tool: tool, host: host(of: head, byPid: byPid), cwd: cwd, label: label,
                 footprint: list.reduce(0) { $0 + $1.footprint }, members: list,
                 topChildren: summarize(list.filter { $0.pid != pid }),
-                ageS: age(head, now: now), idleS: cpuHistory.idleSeconds(head.key, now: now))
+                ageS: age(head, now: now), idleS: cpuHistory.idleSeconds(head.key, now: now),
+                cpuFraction: cpuHistory.cpuFraction(head.key), lastActive: lastActive)
         }
         .sorted { $0.footprint > $1.footprint }
     }
@@ -132,6 +199,14 @@ public enum AgentClassifier {
             out.append(Leftover(record: r, reason: "orphaned \(what) \(owner) · idle \(Format.duration(idle))", idleS: idle))
         }
         return out.sorted { $0.record.footprint > $1.record.footprint }
+    }
+
+    /// "~" for the home folder, "~/Projects/stdout" -> "stdout", "/" -> "/".
+    static func label(forCwd cwd: String) -> String {
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        if cwd == home || cwd == home + "/" { return "~" }
+        let last = (cwd as NSString).lastPathComponent
+        return last.isEmpty ? cwd : last
     }
 
     static func isDevTool(_ r: ProcessRecord) -> Bool {

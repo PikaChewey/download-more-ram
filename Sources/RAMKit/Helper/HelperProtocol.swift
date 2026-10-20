@@ -26,4 +26,11 @@ public struct HelperStatus: Codable, Sendable {
     public var busy: Bool
     public var lastRelief: Date?
     public var reliefsThisHour: Int
+
+    public init(version: String, busy: Bool, lastRelief: Date?, reliefsThisHour: Int) {
+        self.version = version
+        self.busy = busy
+        self.lastRelief = lastRelief
+        self.reliefsThisHour = reliefsThisHour
+    }
 }

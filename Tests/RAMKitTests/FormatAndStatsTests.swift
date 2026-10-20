@@ -5,14 +5,16 @@ import Testing
 @Suite("Formatting")
 struct FormatTests {
     @Test func bytesLikeActivityMonitor() {
-        #expect(Format.bytes(4_110_000_000) == "4.11 GB")
-        #expect(Format.bytes(17_680_000_000) == "17.68 GB")
-        #expect(Format.bytes(97_300_000) == "97.3 MB")
-        #expect(Format.bytes(512_000) == "512 KB")
+        let gib = 1_073_741_824.0, mib = 1_048_576.0
+        #expect(Format.bytes(Int64(4.11 * gib)) == "4.11 GB")
+        #expect(Format.bytes(Int64(17.68 * gib)) == "17.68 GB")
+        #expect(Format.bytes(UInt64(16) << 30) == "16.00 GB")     // a 16 GB Mac, as Activity Monitor shows it
+        #expect(Format.bytes(Int64(97.3 * mib)) == "97.3 MB")
+        #expect(Format.bytes(512 * 1024) == "512 KB")
         #expect(Format.bytes(0) == "0 B")
-        #expect(Format.bytes(-1_200_000_000, signed: true) == "-1.20 GB")
-        #expect(Format.bytes(1_200_000_000, signed: true) == "+1.20 GB")
-        #expect(Format.bytes(-97_300_000) == "-97.3 MB")
+        #expect(Format.bytes(Int64(-1.2 * gib), signed: true) == "-1.20 GB")
+        #expect(Format.bytes(Int64(1.2 * gib), signed: true) == "+1.20 GB")
+        #expect(Format.bytes(Int64(-97.3 * mib)) == "-97.3 MB")
     }
 
     @Test func bars() {

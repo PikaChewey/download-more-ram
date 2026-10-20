@@ -40,7 +40,8 @@ let usage = """
       ram                       memory, swap, distance to the wall, top apps
       ram apps [--all]          every app's memory, grouped like Force Quit
       ram agents                AI agent sessions and the leftovers they forgot
-      ram download [--hold S]   ask the kernel for its memory-pressure response, measure what came back
+      ram download [--hold S] [--dry-run] [--record FILE]
+                                ask the kernel for its memory-pressure response, measure what came back
       ram quit <pid> [--force]  quit a leftover (SIGTERM; --force sends SIGKILL)
       ram doctor [--days N]     when you hit the wall, what was paused, what to do about it
       ram firefox [unloader on|off] [gpu-restart]
@@ -57,6 +58,26 @@ let usage = """
 
     Every read command takes --json.
     """
+
+/// Records the live progress of a download (for scripts/make-demo-svg.swift: the README demo is
+/// rendered from a real run, never typed).
+final class FrameRecorder: @unchecked Sendable {
+    struct Frame: Codable { var t: Double; var phase: String; var reclaimed: Int64; var rate: Double; var elapsed: Double; var total: Double }
+    struct Recording: Codable { var frames: [Frame]; var receipt: Receipt }
+    private let lock = NSLock()
+    private var frames: [Frame] = []
+    private let start = Date()
+    func add(_ p: ReliefProgress) {
+        lock.withLock {
+            frames.append(Frame(t: Date().timeIntervalSince(start), phase: p.phase.rawValue, reclaimed: p.reclaimedSoFar,
+                                rate: p.rateBytesPerSec, elapsed: p.elapsed, total: p.total))
+        }
+    }
+    func write(to url: URL, receipt: Receipt) throws {
+        let e = JSONEncoder(); e.outputFormatting = [.prettyPrinted, .sortedKeys]; e.dateEncodingStrategy = .iso8601
+        try e.encode(Recording(frames: lock.withLock { frames }, receipt: receipt)).write(to: url, options: .atomic)
+    }
+}
 
 struct StatusJSON: Encodable {
     var system: SystemSample
@@ -111,21 +132,35 @@ case "agents":
 
 case "download":
     warnInterruptedHold()
-    let availability = await ReliefAvailability.detect()
-    guard let backend = availability.backend() else {
-        if case .unavailable(let reason) = availability { fail(reason, code: 3) }
-        fail(ReliefError.notPermitted.description, code: 3)
+    let dryRun = flags.contains("--dry-run")
+    let backend: any ReliefBackend
+    if dryRun {
+        backend = NullBackend()   // identical measurement, no signal: shows this Mac's natural drift
+    } else {
+        let availability = await ReliefAvailability.detect()
+        guard let b = availability.backend() else {
+            if case .unavailable(let reason) = availability { fail(reason + "\n(Or measure without the signal:  ram download --dry-run)", code: 3) }
+            fail(ReliefError.notPermitted.description, code: 3)
+        }
+        backend = b
     }
     let hold = Int(value("--hold") ?? "10").map { $0 * 1000 } ?? 10_000
     let engine = ReliefEngine(backend: backend, holdMs: hold, settleMs: 5_000, wall: { s in
         var m = WallModel(); m.add(s); return m.status()?.percent ?? 0
     })
     let json = flags.contains("--json")
+    let recordPath = value("--record")
+    let recorder = FrameRecorder()
     if !json {
-        print(style.bold("Downloading RAM") + style.dim(" — macOS memory-pressure signal (critical, \(hold / 1000)s) via \(backend.name), measured with phys_footprint"))
+        if dryRun {
+            print(style.bold("Dry run") + style.dim(" — same measurement, no signal: this is the natural drift a real download has to beat"))
+        } else {
+            print(style.bold("Downloading RAM") + style.dim(" — macOS memory-pressure signal (critical, \(hold / 1000)s) via \(backend.name), measured with phys_footprint"))
+        }
     }
     do {
         let receipt = try await engine.run { p in
+            recorder.add(p)
             guard !json else { return }
             if isTTY {
                 FileHandle.standardOutput.write(Data(("\r\u{1B}[2K" + Render.progress(p, style: style)).utf8))
@@ -134,7 +169,8 @@ case "download":
             }
         }
         if isTTY && !json { print("") }
-        let url = try? receipt.save()
+        let url = dryRun ? nil : try? receipt.save()
+        if let recordPath { try? recorder.write(to: URL(fileURLWithPath: recordPath), receipt: receipt) }
         if json { printJSON(receipt) }
         else {
             print(Render.receipt(receipt, style: style), terminator: "")
@@ -223,7 +259,7 @@ case "doctor":
                                    sessions: AgentClassifier.sessions(snap, cpuHistory: cpu),
                                    leftovers: AgentClassifier.leftovers(snap, cpuHistory: cpu),
                                    reliefAvailable: await ReliefAvailability.detect().backend() != nil,
-                                   firefoxProfile: FirefoxLevers.defaultProfile())
+                                   firefoxProfile: FirefoxLevers.defaultProfile(), cpu: cpu)
     if flags.contains("--json") {
         struct DoctorJSON: Encodable { var events: [WallEvent]; var diagnosis: Diagnosis }
         printJSON(DoctorJSON(events: events, diagnosis: diagnosis))

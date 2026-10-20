@@ -21,7 +21,15 @@ public struct Diagnosis: Codable, Sendable {
     public var firefoxGPUBytes: UInt64?
     public var firefoxUnloaderOn: Bool?
     public var reliefAvailable: Bool
+    /// Apps whose main process macOS paused while their helper processes keep burning CPU
+    /// (observed 2026-10-20: ChatGPT's Codex helpers at ~4 cores for hours, on battery).
+    public var spinningWhilePaused: [SpinningApp]
     public var fixes: [Fix]
+
+    public struct SpinningApp: Codable, Sendable, Equatable {
+        public var app: String
+        public var cores: Double
+    }
 
     public struct AppSummaryLine: Codable, Sendable {
         public var name: String
@@ -33,8 +41,17 @@ public struct Diagnosis: Codable, Sendable {
     public static let quietAfterS: Double = 6 * 3600
 
     public static func make(system: SystemSample, wall: WallStatus?, snapshot: ProcessSnapshot, sessions: [AgentSession],
-                            leftovers: [Leftover], reliefAvailable: Bool, firefoxProfile: URL?, now: Date = Date()) -> Diagnosis {
+                            leftovers: [Leftover], reliefAvailable: Bool, firefoxProfile: URL?, cpu: CPUHistory? = nil,
+                            now: Date = Date()) -> Diagnosis {
         let groups = AppGrouper.group(snapshot)
+        var spinning: [SpinningApp] = []
+        if let cpu {
+            for g in groups where g.head?.pausedByWall == true {
+                let cores = g.members.filter { !$0.pausedByWall }.compactMap { cpu.cpuFraction($0.key) }.reduce(0, +)
+                if cores >= 0.5 { spinning.append(SpinningApp(app: g.name, cores: cores)) }
+            }
+            spinning.sort { $0.cores > $1.cores }
+        }
         let insights = WallInsights.from(snapshot, system: system)
         let quiet = sessions.filter { s in
             if let last = s.lastActive { return now.timeIntervalSince(last) > quietAfterS }
@@ -46,8 +63,11 @@ public struct Diagnosis: Codable, Sendable {
 
         var fixes: [Fix] = []
         if !insights.stillPausedApps.isEmpty {
-            fixes.append(Fix(title: "Resume \(insights.stillPausedApps.joined(separator: ", ")): macOS paused them at the memory wall and never resumed them",
-                             estimateBytes: nil, how: reliefAvailable ? "ram resume" : "click Resume in the Force Quit panel, or: sudo ram resume"))
+            var title = "Resume \(insights.stillPausedApps.joined(separator: ", ")): macOS paused them at the memory wall and never resumed them"
+            let burn = spinning.reduce(0) { $0 + $1.cores }
+            if burn >= 0.5 { title += String(format: " (their helpers are burning %.1f cores meanwhile)", burn) }
+            fixes.append(Fix(title: title, estimateBytes: nil,
+                             how: reliefAvailable ? "ram resume" : "click Resume in the Force Quit panel, or: sudo ram resume"))
         }
         if let gpu, gpu.footprint > 1 << 30 {
             fixes.append(Fix(title: "Restart Firefox's GPU process (Firefox relaunches it; WebGL/canvas reset)",
@@ -79,6 +99,6 @@ public struct Diagnosis: Codable, Sendable {
             agentCount: sessions.count, agentBytes: sessions.reduce(0) { $0 + $1.footprint },
             quietAgentCount: quiet.count, quietAgentBytes: quiet.reduce(0) { $0 + $1.footprint },
             leftovers: leftovers, firefoxBytes: firefox?.footprint, firefoxGPUBytes: gpu?.footprint,
-            firefoxUnloaderOn: unloader, reliefAvailable: reliefAvailable, fixes: fixes)
+            firefoxUnloaderOn: unloader, reliefAvailable: reliefAvailable, spinningWhilePaused: spinning, fixes: fixes)
     }
 }

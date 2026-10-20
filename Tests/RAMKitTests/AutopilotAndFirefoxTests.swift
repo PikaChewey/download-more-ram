@@ -101,3 +101,26 @@ struct FirefoxLeverTests {
         #expect(FirefoxLevers.restartGPU(young, now: now) == .tooYoung(10))
     }
 }
+
+@Suite("Spinning while paused")
+struct SpinningWhilePausedTests {
+    @Test func helpersBurningCPUBehindAPausedAppAreReported() throws {
+        let chatgpt = "/Applications/ChatGPT.app/Contents/MacOS/ChatGPT"
+        func snap(_ t: Double, cpu: UInt64) -> ProcessSnapshot {
+            var main = rec(57287, name: "ChatGPT", path: chatgpt, mb: 400, start: 1)
+            main.bsdFlags = 0x1405410                       // paused at the wall
+            let service = rec(57308, name: "Codex (Service)", mb: 250, resp: 57287, cpuNs: cpu, start: 2)
+            let renderer = rec(57335, name: "Codex (Renderer)", mb: 990, resp: 57287, cpuNs: cpu, start: 3)
+            return ProcessSnapshot(timestamp: Date(timeIntervalSince1970: t), records: [main, service, renderer])
+        }
+        var history = CPUHistory()
+        history.add(snap(0, cpu: 0))
+        history.add(snap(2, cpu: 1_900_000_000))           // each helper ~95% of a core
+        let d = Diagnosis.make(system: fakeSystem(), wall: nil, snapshot: snap(2, cpu: 1_900_000_000), sessions: [],
+                               leftovers: [], reliefAvailable: false, firefoxProfile: nil, cpu: history)
+        let s = try #require(d.spinningWhilePaused.first)
+        #expect(s.app == "ChatGPT")
+        #expect(abs(s.cores - 1.9) < 0.01)
+        #expect(d.fixes.first?.title.contains("burning 1.9 cores") == true)
+    }
+}

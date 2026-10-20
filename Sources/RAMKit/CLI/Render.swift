@@ -153,7 +153,10 @@ public enum Render {
         out += "  memory \(Format.bytes(s.memoryUsedBytes)) of \(Format.bytes(s.physicalBytes)) · swap \(Format.bytes(s.swapUsed)) · pressure \(style.pressure(s.pressureLevel))\n"
         if let next = d.insights.nextToPauseApp { out += "  If you hit it, macOS pauses \(next) first.\n" }
         if !d.insights.stillPausedApps.isEmpty {
-            out += "  " + style.amber("macOS paused part of \(d.insights.stillPausedApps.joined(separator: ", ")) and never resumed it.") + "\n"
+            out += "  " + style.amber("macOS paused \(d.insights.stillPausedApps.joined(separator: ", ")) at the wall and never resumed them.") + "\n"
+            for sp in d.spinningWhilePaused {
+                out += "  " + style.red(String(format: "%@ is paused, but its helpers are using %.1f cores.", sp.app, sp.cores)) + "\n"
+            }
         }
         out += "\n" + style.bold("What's using it") + "\n"
         for a in d.topApps { out += "  \(pad(a.name, 22)) \(lpad(Format.bytes(a.footprint), 9))  \(style.dim("\(a.processes) proc"))\n" }

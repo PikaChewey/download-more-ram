@@ -113,7 +113,11 @@ public actor ReliefEngine {
         let backend = self.backend
         let level = self.level
         let holdMs = self.holdMs
-        let relief = Task { try await backend.relieve(level: level, holdMs: holdMs) }
+        // A refusal or kernel error ends the download at once, not after a hold that never happened.
+        let failure = FailureBox()
+        let relief = Task {
+            do { try await backend.relieve(level: level, holdMs: holdMs) } catch { failure.set(error); throw error }
+        }
 
         // 3. Watch apps respond through the hold and the settle window. On any error, end the hold
         // (cancelling restores normal pressure) before rethrowing, so a caller that exits right
@@ -125,6 +129,7 @@ public actor ReliefEngine {
         do {
             while sampling.now().timeIntervalSince(reliefStart) * 1000 < Double(holdMs + settleMs) {
                 try await sampling.sleep(ms: Self.tickMs)
+                if let error = failure.error { throw error }
                 let current = sampling.processSnapshot()
                 cpu.add(current)
                 let m = Measurement.deltas(before: before, after: current, busy: busy)
@@ -186,4 +191,12 @@ public actor ReliefEngine {
             wallBefore: wall?(systemBefore), wallAfter: wall?(systemAfter), levers: leverResults,
             offers: offers.isEmpty ? nil : offers)
     }
+}
+
+/// The relief task's error, visible to the measuring loop while the task is still being awaited.
+final class FailureBox: @unchecked Sendable {
+    private let lock = NSLock()
+    private var stored: Error?
+    var error: Error? { lock.withLock { stored } }
+    func set(_ e: Error) { lock.withLock { stored = e } }
 }

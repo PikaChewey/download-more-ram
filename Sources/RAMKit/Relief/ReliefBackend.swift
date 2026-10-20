@@ -27,3 +27,13 @@ public protocol ReliefBackend: Sendable {
     /// Forces the kernel back to normal (manual testing mode off).
     func restore() async throws
 }
+
+extension ReliefError {
+    /// Seconds to wait from a helper refusal like "wait 6s between downloads" (at most 30), else nil.
+    public static func retryAfter(_ why: String) -> Int? {
+        guard let r = why.range(of: #"wait (\d+)s between downloads"#, options: .regularExpression) else { return nil }
+        let digits = why[r].dropFirst("wait ".count).prefix { $0.isNumber }
+        guard let n = Int(digits), n >= 0, n <= 30 else { return nil }
+        return n
+    }
+}

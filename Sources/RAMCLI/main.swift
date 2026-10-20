@@ -69,7 +69,9 @@ final class FrameRecorder: @unchecked Sendable {
     struct Recording: Codable { var command: String; var frames: [Frame]; var receipt: Receipt }
     private let lock = NSLock()
     private var frames: [Frame] = []
-    private let start = Date()
+    private var start = Date()
+    /// Drops what was recorded so far (a refused start), so a retry records from zero.
+    func reset() { lock.withLock { frames = []; start = Date() } }
     func add(_ p: ReliefProgress) {
         lock.withLock {
             frames.append(Frame(t: Date().timeIntervalSince(start), phase: p.phase.rawValue, reclaimed: p.reclaimedSoFar,
@@ -223,15 +225,27 @@ case "download":
             print(style.bold("Downloading RAM") + style.dim(" — macOS memory-pressure signal (critical, \(hold / 1000)s) via \(backend.name), measured with phys_footprint"))
         }
     }
+    let onProgress: @Sendable (ReliefProgress) -> Void = { p in
+        recorder.add(p)
+        guard !json else { return }
+        if isTTY {
+            FileHandle.standardOutput.write(Data(("\r\u{1B}[2K" + Render.progress(p, style: style)).utf8))
+        } else if p.phase == .done || Int(p.elapsed * 2) % 4 == 0 {
+            print(Render.progress(p, style: style))
+        }
+    }
     do {
-        let receipt = try await engine.run { p in
-            recorder.add(p)
-            guard !json else { return }
-            if isTTY {
-                FileHandle.standardOutput.write(Data(("\r\u{1B}[2K" + Render.progress(p, style: style)).utf8))
-            } else if p.phase == .done || Int(p.elapsed * 2) % 4 == 0 {
-                print(Render.progress(p, style: style))
-            }
+        let receipt: Receipt
+        do {
+            receipt = try await engine.run(progress: onProgress)
+        } catch let ReliefError.refused(why) where ReliefError.retryAfter(why) != nil {
+            // The helper spaces downloads 20 s apart: wait it out once instead of failing.
+            let wait = ReliefError.retryAfter(why)!
+            if isTTY && !json { print("") }
+            if !json { print(style.dim("The helper spaces downloads apart; starting again in \(wait) s…")) }
+            recorder.reset()
+            try await Task.sleep(nanoseconds: UInt64(wait + 1) * 1_000_000_000)
+            receipt = try await engine.run(progress: onProgress)
         }
         if isTTY && !json { print("") }
         let url = dryRun ? nil : try? receipt.save()

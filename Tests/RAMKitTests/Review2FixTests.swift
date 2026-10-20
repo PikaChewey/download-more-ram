@@ -124,6 +124,19 @@ struct Review2FixTests {
         #expect(try await runner.run([.resumePaused], sessions: [], leftovers: [], wall: far).first?.targets == ["ChatGPT"])
     }
 
+    // A refused start ends the download at once instead of showing a hold that never happened.
+    @Test func refusalEndsTheDownloadImmediately() async {
+        let sampling = YieldingSampling(Self.flatMachine())
+        let engine = ReliefEngine(backend: RefusingBackend(), holdMs: 10_000, settleMs: 5_000, sampling: sampling, info: FakeInfo())
+        let start = sampling.now()
+        await #expect(throws: ReliefError.refused("wait 6s between downloads")) { try await engine.run() }
+        // Baseline (2 s) plus one 0.5 s tick, not the 15 s window.
+        #expect(sampling.now().timeIntervalSince(start) < 3)
+        #expect(ReliefError.retryAfter("wait 6s between downloads") == 6)
+        #expect(ReliefError.retryAfter("wait 99s between downloads") == nil)
+        #expect(ReliefError.retryAfter("hold must be 1-30 seconds") == nil)
+    }
+
     // R-8: ownership follows the person behind sudo, not root.
     @Test func ownershipIsThePersonNotRoot() {
         #expect(RealUser.uid == getuid())   // not running under sudo here
@@ -132,4 +145,25 @@ struct Review2FixTests {
         let theirs = rec(1235, uid: getuid() + 1, name: "node", path: "/usr/local/bin/node", mb: 10)
         #expect(SafeKill.check(theirs, current: theirs) == .refused(.otherUser))
     }
+}
+
+/// A helper that refuses every download, the way it does inside its 20 s spacing.
+struct RefusingBackend: ReliefBackend {
+    let name = "refusing"
+    func relieve(level: PressureLevel, holdMs: Int) async throws { throw ReliefError.refused("wait 6s between downloads") }
+    func restore() async throws {}
+}
+
+/// Virtual time like FakeSampling, but every sleep really suspends for 1 ms, as live sleeps do, so
+/// tasks waiting on the engine actor get to run between ticks.
+final class YieldingSampling: Sampling, @unchecked Sendable {
+    let base: FakeSampling
+    init(_ base: FakeSampling) { self.base = base }
+    func processSnapshot() -> ProcessSnapshot { base.processSnapshot() }
+    func systemSample() throws -> SystemSample { try base.systemSample() }
+    func sleep(ms: Int) async throws {
+        try await Task.sleep(nanoseconds: 1_000_000)
+        try await base.sleep(ms: ms)
+    }
+    func now() -> Date { base.now() }
 }

@@ -114,7 +114,8 @@ struct ResumeTests {
     }
 
     @Test(.enabled(if: geteuid() != 0)) func needsRoot() {
-        #expect(PausedApps.resume(pid: getpid()) == .failure(.notRoot))
+        guard case .failure(let why) = PausedApps.resume(pid: getpid()) else { Issue.record("expected refusal"); return }
+        #expect(why == .notRoot)
     }
 
     @Test func safeOnlyWhenTheWallHasReceded() {

@@ -42,7 +42,9 @@ let usage = """
       ram agents                AI agent sessions and the leftovers they forgot
       ram download [--hold S]   ask the kernel for its memory-pressure response, measure what came back
       ram quit <pid> [--force]  quit a leftover (SIGTERM; --force sends SIGKILL)
-      ram doctor [--days N]     when you hit the wall, what was paused, what to do
+      ram doctor [--days N]     when you hit the wall, what was paused, what to do about it
+      ram firefox [unloader on|off] [gpu-restart]
+                                Firefox's two real levers (tab unloader pref, GPU process restart)
       ram watch [--autopilot]   live wall readout; with --autopilot, download when the wall is near
       ram receipt [last|FILE]   print a saved download receipt
       ram bench real|synthetic|perf [--trials N] [--hold S] [--cooldown S]
@@ -185,18 +187,56 @@ case "doctor":
     let days = Int(value("--days") ?? "7") ?? 7
     if isTTY { FileHandle.standardError.write(Data(style.dim("Reading the last \(days) days of system logs (this takes a while)…\n").utf8)) }
     let events = (try? WallEventLog.read(days: days)) ?? []
-    if flags.contains("--json") { printJSON(events) }
-    else {
-        if events.isEmpty { print(style.green("No \"out of application memory\" events in the last \(days) days.")) }
-        else {
-            print(style.bold("Your Mac hit the memory wall \(events.count) time\(events.count == 1 ? "" : "s") in the last \(days) days:"))
-            let f = DateFormatter(); f.dateFormat = "EEE MMM d HH:mm"
-            for e in events {
-                let dur = e.end.map { Format.duration($0.timeIntervalSince(e.start)) } ?? "still open"
-                let paused = e.pausedApps.isEmpty ? "" : " · paused: " + e.pausedApps.joined(separator: ", ")
-                print("  \(f.string(from: e.start)) (\(dur))\(paused)")
-            }
+    guard let system = try? SystemSampler.read() else { fail("Could not read memory statistics", code: 1) }
+    var wallModel = WallModel()
+    wallModel.add(system)
+    var cpu = CPUHistory()
+    cpu.add(ProcessSampler.snapshot())
+    usleep(1_000_000)
+    let snap = ProcessSampler.snapshot()
+    cpu.add(snap)
+    let diagnosis = Diagnosis.make(system: system, wall: wallModel.status(), snapshot: snap,
+                                   sessions: AgentClassifier.sessions(snap, cpuHistory: cpu),
+                                   leftovers: AgentClassifier.leftovers(snap, cpuHistory: cpu),
+                                   reliefAvailable: await ReliefAvailability.detect().backend() != nil,
+                                   firefoxProfile: FirefoxLevers.defaultProfile())
+    if flags.contains("--json") {
+        struct DoctorJSON: Encodable { var events: [WallEvent]; var diagnosis: Diagnosis }
+        printJSON(DoctorJSON(events: events, diagnosis: diagnosis))
+    } else {
+        print(Render.doctor(diagnosis, events: events, days: days, system: system, style: style), terminator: "")
+    }
+
+case "firefox":
+    let sub = Array(args.dropFirst())
+    switch (sub.first ?? "status", sub.dropFirst().first ?? "status") {
+    case ("unloader", let action):
+        guard let profile = FirefoxLevers.defaultProfile() else { fail("No Firefox profile found.", code: 1) }
+        switch action {
+        case "on":
+            do { try FirefoxLevers.enableUnloader(profile: profile) } catch { fail("\(error)", code: 1) }
+            print("Added browser.lowMemoryResponseMask = 3 to \(profile.lastPathComponent)/user.js. It applies the next time Firefox starts (or set it now in about:config). Undo:  ram firefox unloader off")
+        case "off":
+            do { try FirefoxLevers.disableUnloader(profile: profile) } catch { fail("\(error)", code: 1) }
+            print("Removed the line Download More RAM added to \(profile.lastPathComponent)/user.js.")
+        default:
+            let mask = FirefoxLevers.lowMemoryResponseMask(profile: profile)
+            print("Firefox low-memory tab unloading: \((mask ?? 0) != 0 ? "on" : "off") (browser.lowMemoryResponseMask = \(mask.map(String.init) ?? "0, the release default")) · profile \(profile.lastPathComponent)")
         }
+    case ("gpu-restart", _):
+        guard let gpu = FirefoxLevers.gpuProcess(in: ProcessSampler.snapshot()) else { fail("Firefox's GPU process is not running.", code: 1) }
+        switch FirefoxLevers.restartGPU(gpu) {
+        case .restarted: print("Restarted Firefox's GPU process (it held \(Format.bytes(gpu.footprint))). Firefox relaunches it on its own; WebGL and canvas content resets.")
+        case .tooYoung(let s): fail("It has only been running \(Int(s))s; restarting it now would count as a crash. Try again in a minute.", code: 4)
+        case .refused(let why): fail("Refused: \(why)", code: 4)
+        }
+    default:
+        let snap = ProcessSampler.snapshot()
+        let gpu = FirefoxLevers.gpuProcess(in: snap)
+        let profile = FirefoxLevers.defaultProfile()
+        print("Firefox GPU process: \(gpu.map { Format.bytes($0.footprint) } ?? "not running")")
+        print("Low-memory tab unloading: \(profile.map { FirefoxLevers.isUnloaderOn(profile: $0) ? "on" : "off" } ?? "no profile")")
+        print(style.dim("ram firefox unloader on|off · ram firefox gpu-restart"))
     }
 
 case "watch":

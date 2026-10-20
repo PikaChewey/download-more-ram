@@ -130,4 +130,51 @@ public enum Render {
         out += "\n" + style.dim("  Measured with phys_footprint (Activity Monitor's Memory column); busy apps and apps that started/quit are not counted.") + "\n"
         return out
     }
+
+    public static func doctor(_ d: Diagnosis, events: [WallEvent], days: Int, system s: SystemSample, style: Style) -> String {
+        var out = style.bold("Download More RAM — doctor") + "\n\n"
+        if events.isEmpty {
+            out += style.green("No \"out of application memory\" events in the last \(days) days.") + "\n"
+        } else {
+            out += style.bold("Your Mac hit the memory wall \(events.count) time\(events.count == 1 ? "" : "s") in the last \(days) days") + "\n"
+            let f = DateFormatter(); f.dateFormat = "EEE MMM d HH:mm"
+            for e in events.suffix(8) {
+                let dur = e.end.map { Format.duration($0.timeIntervalSince(e.start)) } ?? "still open"
+                let paused = e.pausedApps.isEmpty ? "" : " · paused: " + e.pausedApps.joined(separator: ", ")
+                out += "  \(f.string(from: e.start)) (\(dur))\(paused)\n"
+            }
+        }
+        out += "\n" + style.bold("Right now") + "\n"
+        if let w = d.wall {
+            out += "  " + style.wall(w.percent, "\(Format.percent(w.percent)) to the wall") + " · \(w.reason)"
+            if w.imminent { out += " · " + style.red("imminent") } else if let eta = w.etaSeconds { out += " · ~\(Format.duration(eta)) at this rate" }
+            out += "\n"
+        }
+        out += "  memory \(Format.bytes(s.memoryUsedBytes)) of \(Format.bytes(s.physicalBytes)) · swap \(Format.bytes(s.swapUsed)) · pressure \(style.pressure(s.pressureLevel))\n"
+        if let next = d.insights.nextToPauseApp { out += "  If you hit it, macOS pauses \(next) first.\n" }
+        if !d.insights.stillPausedApps.isEmpty {
+            out += "  " + style.amber("macOS paused part of \(d.insights.stillPausedApps.joined(separator: ", ")) and never resumed it.") + "\n"
+        }
+        out += "\n" + style.bold("What's using it") + "\n"
+        for a in d.topApps { out += "  \(pad(a.name, 22)) \(lpad(Format.bytes(a.footprint), 9))  \(style.dim("\(a.processes) proc"))\n" }
+        if d.agentCount > 0 {
+            out += "  \(d.agentCount) AI agent sessions hold \(Format.bytes(d.agentBytes))"
+            if d.quietAgentCount > 0 { out += "; \(d.quietAgentCount) quiet for > 6 h hold \(Format.bytes(d.quietAgentBytes))" }
+            out += "\n"
+        }
+        if let ff = d.firefoxBytes {
+            out += "  Firefox \(Format.bytes(ff))"
+            if let g = d.firefoxGPUBytes { out += " (GPU process \(Format.bytes(g)))" }
+            if let on = d.firefoxUnloaderOn { out += " · low-memory tab unloading \(on ? "on" : "off")" }
+            out += "\n"
+        }
+        out += "\n" + style.bold("Fixes, biggest first") + "\n"
+        if d.fixes.isEmpty { out += style.green("  Nothing to fix right now.") + "\n" }
+        for (i, f) in d.fixes.enumerated() {
+            let est = f.estimateBytes.map { " " + style.green("~\(Format.bytes($0))") } ?? ""
+            out += "  \(i + 1). \(f.title)\(est)\n     \(style.dim(f.how))\n"
+        }
+        return out
+    }
 }
+

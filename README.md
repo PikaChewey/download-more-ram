@@ -12,6 +12,10 @@ agents left running, and warns you before "Your system has run out of applicatio
 
 ## What it found on the author's 16 GB MacBook (one day, 2026-10-20)
 
+- **macOS killed 6,645 background processes in 11 minutes** (Oct 16, 4 AM; cfprefsd alone 491 times) while the
+  Claude app and what its agent sessions launched held 45.5 GB, 35.7 GB of it in 23 python3.12 processes.
+  macOS writes a report for every memory crisis; `ram doctor` reads them and names who filled memory
+  ([evidence](bench/evidence/2026-10-20T13-45-crisis-reports.json)).
 - **16 copies of the same MCP server, 3.15 GB.** Every Claude Code session starts its own copy of every stdio
   MCP server you configure globally. `ram agents` lists them and `ram doctor` names the config to change
   ([evidence](bench/evidence/2026-10-20T13-18-agents.json)).
@@ -37,6 +41,7 @@ up here with 93 GB free. [The kernel source, line by line →](docs/HOW_IT_WORKS
 |---|---|
 | **Downloads RAM** | `ram download` sends macOS's own *critical* memory-pressure signal for 10 s (the root-only switch behind Apple's `memory_pressure -S`), then pulls the levers you allow, one at a time, each measured on its own. The receipt's headline is exactly the sum of the levers. |
 | **Levers** | Firefox GPU process restart · quit leftover servers your agents forgot · quit agent sessions you archived that are still running · resume apps macOS paused. Anything that ends a process needs your yes; nothing runs on its own. |
+| **Explains past crises** | Reads the reports macOS writes when it runs out of memory (`JetsamEvent`): who held the memory and how many background processes the kernel killed to cope. |
 | **Shows the wall** | "38% to the wall" from the limits the kernel actually checks, the time until you hit it, which app macOS will pause first, and a warning the moment swap is full and no new swapfile appears. |
 | **Agents** | Memory per Claude Code / Codex / Cursor / Gemini session with its real title, archived-but-running sessions, duplicate MCP servers, orphaned dev servers. |
 | **Firefox** | Turns on Firefox's low-memory tab unloader (shipped **off** outside Nightly: `browser.lowMemoryResponseMask = 0`). |
@@ -81,7 +86,7 @@ ram doctor
 
 ```
 ram                         memory, swap, distance to the wall, top apps
-ram doctor [--fast]         wall history, what's using memory, fixes ranked by size
+ram doctor [--fast]         wall history, who filled memory in each crisis, fixes ranked by size
 ram download [--levers firefox-gpu,leftovers,archived,resume]
                             the kernel's memory-pressure signal + the levers you allow, with a receipt
 ram download --dry-run      the same measurement without the signal: your Mac's natural drift

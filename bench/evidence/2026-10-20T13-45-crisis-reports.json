@@ -1,0 +1,315 @@
+{
+ "note": "ram doctor --json, crisis-report section only (macOS JetsamEvent reports in /Library/Logs/DiagnosticReports), 2026-10-20",
+ "jetsam": [
+  {
+   "end": "2026-10-16T08:12:58Z",
+   "killReasons": {
+    "idle-exit": 219,
+    "jettisoned": 3395,
+    "per-process-limit": 4,
+    "vm-compressor-space-shortage": 3027
+   },
+   "killed": 6645,
+   "mostKilled": [
+    {
+     "bytes": 984924160,
+     "count": 491,
+     "name": "cfprefsd"
+    },
+    {
+     "bytes": 1137819648,
+     "count": 464,
+     "name": "contactsd"
+    },
+    {
+     "bytes": 562790400,
+     "count": 234,
+     "name": "mdworker_shared"
+    }
+   ],
+   "peak": {
+    "apps": [
+     {
+      "biggest": {
+       "bytes": 38367641600,
+       "count": 23,
+       "name": "python3.12"
+      },
+      "bytes": 48886661120,
+      "name": "Claude",
+      "processes": 133
+     },
+     {
+      "biggest": {
+       "bytes": 8991211520,
+       "count": 49,
+       "name": "plugin-container"
+      },
+      "bytes": 12387975168,
+      "name": "firefox",
+      "processes": 53
+     },
+     {
+      "biggest": {
+       "bytes": 2058698752,
+       "count": 11,
+       "name": "Codex (Renderer)"
+      },
+      "bytes": 4655316992,
+      "name": "ChatGPT",
+      "processes": 41
+     },
+     {
+      "biggest": {
+       "bytes": 1071775744,
+       "count": 2,
+       "name": "Notion Helper (Renderer)"
+      },
+      "bytes": 1455554560,
+      "name": "Notion",
+      "processes": 7
+     },
+     {
+      "biggest": {
+       "bytes": 589709312,
+       "count": 2,
+       "name": "Discord Helper (Renderer)"
+      },
+      "bytes": 995590144,
+      "name": "Discord",
+      "processes": 9
+     }
+    ],
+    "compressedDataBytes": 68637114368,
+    "compressorBytes": 6865600512,
+    "date": "2026-10-16T08:05:45Z",
+    "file": "JetsamEvent-2026-10-16-040546.ips",
+    "killReasons": {
+     "idle-exit": 30,
+     "jettisoned": 416,
+     "vm-compressor-space-shortage": 114
+    },
+    "killed": 560,
+    "largestProcess": "python3.12",
+    "mostKilled": [
+     {
+      "bytes": 207388672,
+      "count": 84,
+      "name": "contactsd"
+     },
+     {
+      "bytes": 103825408,
+      "count": 46,
+      "name": "cfprefsd"
+     },
+     {
+      "bytes": 33521664,
+      "count": 11,
+      "name": "secinitd"
+     }
+    ]
+   },
+   "reports": 9,
+   "start": "2026-10-16T08:02:13Z"
+  },
+  {
+   "end": "2026-10-16T16:21:43Z",
+   "killReasons": {
+    "idle-exit": 13,
+    "jettisoned": 833,
+    "per-process-limit": 2,
+    "vm-compressor-space-shortage": 1165
+   },
+   "killed": 2013,
+   "mostKilled": [
+    {
+     "bytes": 138231808,
+     "count": 62,
+     "name": "cfprefsd"
+    },
+    {
+     "bytes": 173326336,
+     "count": 60,
+     "name": "com.apple.geod"
+    },
+    {
+     "bytes": 165412864,
+     "count": 47,
+     "name": "systemstatusd"
+    }
+   ],
+   "peak": {
+    "apps": [
+     {
+      "biggest": {
+       "bytes": 43860639744,
+       "count": 26,
+       "name": "python3.12"
+      },
+      "bytes": 48415784960,
+      "name": "Claude",
+      "processes": 83
+     },
+     {
+      "biggest": {
+       "bytes": 6573047808,
+       "count": 1,
+       "name": "RobloxStudio"
+      },
+      "bytes": 6601359360,
+      "name": "RobloxStudio",
+      "processes": 3
+     },
+     {
+      "biggest": {
+       "bytes": 1378123776,
+       "count": 8,
+       "name": "Codex (Renderer)"
+      },
+      "bytes": 2186166272,
+      "name": "ChatGPT",
+      "processes": 20
+     },
+     {
+      "biggest": {
+       "bytes": 495091712,
+       "count": 2,
+       "name": "Discord Helper (Renderer)"
+      },
+      "bytes": 934543360,
+      "name": "Discord",
+      "processes": 9
+     },
+     {
+      "biggest": {
+       "bytes": 366231552,
+       "count": 1,
+       "name": "WindowServer"
+      },
+      "bytes": 366231552,
+      "name": "WindowServer",
+      "processes": 1
+     }
+    ],
+    "compressedDataBytes": 55042588672,
+    "compressorBytes": 6639419392,
+    "date": "2026-10-16T16:21:43Z",
+    "file": "JetsamEvent-2026-10-16-122143.ips",
+    "killReasons": {
+     "idle-exit": 13,
+     "jettisoned": 341,
+     "per-process-limit": 2,
+     "vm-compressor-space-shortage": 248
+    },
+    "killed": 604,
+    "largestProcess": "RobloxStudio",
+    "mostKilled": [
+     {
+      "bytes": 83394560,
+      "count": 37,
+      "name": "cfprefsd"
+     },
+     {
+      "bytes": 84705280,
+      "count": 27,
+      "name": "com.apple.geod"
+     },
+     {
+      "bytes": 84541440,
+      "count": 22,
+      "name": "systemstatusd"
+     }
+    ]
+   },
+   "reports": 4,
+   "start": "2026-10-16T16:06:57Z"
+  },
+  {
+   "end": "2026-10-17T21:24:48Z",
+   "killReasons": {
+    "per-process-limit": 1
+   },
+   "killed": 1,
+   "mostKilled": [
+    {
+     "bytes": 16318464,
+     "count": 1,
+     "name": "knowledgeconstructiond"
+    }
+   ],
+   "peak": {
+    "apps": [
+     {
+      "biggest": {
+       "bytes": 6108430336,
+       "count": 7,
+       "name": "python3.12"
+      },
+      "bytes": 12560891904,
+      "name": "Claude",
+      "processes": 85
+     },
+     {
+      "biggest": {
+       "bytes": 3130572800,
+       "count": 20,
+       "name": "plugin-container"
+      },
+      "bytes": 5355307008,
+      "name": "firefox",
+      "processes": 25
+     },
+     {
+      "biggest": {
+       "bytes": 508428288,
+       "count": 6,
+       "name": "Code Helper"
+      },
+      "bytes": 1661763584,
+      "name": "Code",
+      "processes": 16
+     },
+     {
+      "biggest": {
+       "bytes": 549584896,
+       "count": 2,
+       "name": "Discord Helper (Renderer)"
+      },
+      "bytes": 1032388608,
+      "name": "Discord",
+      "processes": 9
+     },
+     {
+      "biggest": {
+       "bytes": 511164416,
+       "count": 1,
+       "name": "WindowServer"
+      },
+      "bytes": 511164416,
+      "name": "WindowServer",
+      "processes": 1
+     }
+    ],
+    "compressedDataBytes": 21373861888,
+    "compressorBytes": 7071956992,
+    "date": "2026-10-17T21:24:48Z",
+    "file": "JetsamEvent-2026-10-17-172448.ips",
+    "killReasons": {
+     "per-process-limit": 1
+    },
+    "killed": 1,
+    "largestProcess": "python3.12",
+    "mostKilled": [
+     {
+      "bytes": 16318464,
+      "count": 1,
+      "name": "knowledgeconstructiond"
+     }
+    ]
+   },
+   "reports": 1,
+   "start": "2026-10-17T21:24:48Z"
+  }
+ ],
+ "jetsamUnreadable": 0
+}

@@ -62,8 +62,9 @@ up here with 93 GB free. [The kernel source, line by line →](docs/HOW_IT_WORKS
 On a Mac full of Electron apps and agents, the signal on its own is not significant: most of those
 processes never hear it (table above). Processes that do listen give back everything they can: the
 pressure-aware test process returned all 112 MB of its cache in every relief run and nothing in the
-control runs, while the one that ignores pressure returned nothing in either. The gigabytes come from
-the levers and the findings at the top.
+control runs, while the one that ignores pressure returned nothing in either. A fresh 1 GB allocation
+was not measurably faster after the signal (0.12 s either way, p = 0.50), so this is not a speed-up
+button. The gigabytes come from the levers and the findings at the top.
 
 <!-- BENCH:BEGIN -->
 - **real** · net bytes returned: relief +478.5 MB vs control -72.0 MB (n = 5, p = 0.147) on Apple M5 · 16 GB

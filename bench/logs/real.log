@@ -1,0 +1,32 @@
+trial 1/5: control
+  control: -46.3 MB net
+cooling down 60s
+trial 1/5: relief
+  relief: +321.9 MB net
+cooling down 60s
+trial 2/5: relief
+  relief: +94.7 MB net
+cooling down 60s
+trial 2/5: control
+  control: +5.9 MB net
+cooling down 60s
+trial 3/5: relief
+  relief: +614.1 MB net
+cooling down 60s
+trial 3/5: control
+  control: -126.9 MB net
+cooling down 60s
+trial 4/5: relief
+  relief: -213.9 MB net
+cooling down 60s
+trial 4/5: control
+  control: -61.2 MB net
+cooling down 60s
+trial 5/5: relief
+  relief: +1.54 GB net
+cooling down 60s
+trial 5/5: control
+  control: -131.4 MB net
+
+net bytes returned: relief +478.5 MB ± +684.3 MB vs control -72.0 MB ± +57.9 MB  (Welch t = 1.79, p = 0.147)
+Saved /Users/bryan/Documents/XCode/DownloadMoreRAM/bench/results/2026-10-20T12-44-09-real.json

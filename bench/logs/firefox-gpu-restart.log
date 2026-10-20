@@ -1,0 +1,8 @@
+AFTER 5s: {"t": 1792514567.774687, "firefox": 13135889200, "swapUsed": 13671202816, "compressed": 4323033088, "available": 19, "pressure": 2, "wall": 36.1035505154023}
+Firefox GPU process: 1.51 GB
+AFTER 15s: {"t": 1792514577.819586, "firefox": 13494632256, "swapUsed": 13786611712, "compressed": 4407312384, "available": 17, "pressure": 2, "wall": 36.39736692880203}
+Firefox GPU process: 1.68 GB
+AFTER 30s: {"t": 1792514592.866, "firefox": 13961315432, "swapUsed": 13990428672, "compressed": 4438818816, "available": 18, "pressure": 2, "wall": 36.909733240909326}
+Firefox GPU process: 1.67 GB
+AFTER 60s: {"t": 1792514622.902261, "firefox": 13246742216, "swapUsed": 13784252416, "compressed": 4387504128, "available": 17, "pressure": 2, "wall": 36.145655442653855}
+Firefox GPU process: 1.68 GB

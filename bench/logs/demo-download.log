@@ -1,0 +1,33 @@
+Downloading RAM — macOS memory-pressure signal (critical, 10s) via helper, measured with phys_footprint
+Measuring baseline ░░░░░░░░░░░░░░░░░░░░░░░░  17s left
+Measuring baseline ██▉░░░░░░░░░░░░░░░░░░░░░  15s left
+Downloading RAM    █████▉░░░░░░░░░░░░░░░░░░  32.5 MB  2.5 MB/s  13s left
+Downloading RAM    ████████▉░░░░░░░░░░░░░░░  12.4 MB  76.1 MB/s  11s left
+Downloading RAM    ███████████▉░░░░░░░░░░░░  24.5 MB  0 B/s  9s left
+Downloading RAM    ██████████████▊░░░░░░░░░  37.9 MB  5.2 MB/s  7s left
+Downloading RAM    ███████████████████▉░░░░  0 B  0 B/s  3s left
+Downloading RAM    ██████████████████████▉░  2.2 MB  7.7 MB/s  1s left
+Downloaded RAM     ████████████████████████  921.2 MB  0s left
+
+✓ Downloaded 921.2 MB of RAM in 24s
+
+  macOS memory-pressure signal          -5.6 MB  Firefox +13.5 MB, Claude Code +704 KB, Claude Code +608 KB, Claude +384 KB
+  Restart Firefox's GPU process       +926.8 MB  GPU process 2.50 GB → 1.48 GB
+  signal, per app:
+  Firefox                    +13.5 MB  ██████████████
+  Claude Code                 +704 KB  ▊             
+  Claude Code                 +608 KB  ▋             
+  Claude                      +384 KB  ▍             
+  fileproviderd               +368 KB  ▍             
+  Claude Code                 +176 KB  ▏             
+  Claude Code                 +160 KB  ▏             
+  logioptionsplus_agent        +96 KB  ▏             
+  com.apple.CloudDocs.iClo     +80 KB  ▏             
+  mdworker_shared              +80 KB  ▏             
+  CursorUIViewService          +48 KB                
+  Claude Code                  +48 KB                
+  not counted (busy): Claude Code -806.5 MB
+
+  Swap 13.12 GB → 13.43 GB · pressure warning → warning · wall 37% → 36%
+  Measured with phys_footprint (Activity Monitor's Memory column); busy apps and apps that started/quit are not counted.
+  Receipt: /Users/bryan/Library/Application Support/DownloadMoreRAM/receipts/2026-10-20T13-10-58.md

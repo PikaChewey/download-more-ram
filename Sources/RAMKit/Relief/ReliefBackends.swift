@@ -67,6 +67,11 @@ public struct HelperBackend: ReliefBackend {
         if let reply { throw ReliefError.refused(reply) }
     }
 
+    public func resumePaused(pid: Int32) async throws {
+        let reply: String? = try await call(timeout: 10) { proxy, done in proxy.resumePaused(pid: Int(pid)) { done($0) } }
+        if let reply { throw ReliefError.refused(reply) }
+    }
+
     public func status(timeout: Double = 3) async throws -> HelperStatus {
         let json: String? = try await call(timeout: timeout) { proxy, done in proxy.status { done($0) } }
         guard let data = json?.data(using: .utf8),

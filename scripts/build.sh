@@ -27,7 +27,11 @@ done
 IDENTITY=${RAM_SIGN_IDENTITY:-$(security find-identity -v -p codesigning | awk -F'"' '/Apple Development/ { print $2; exit }')}
 IDENTITY=${IDENTITY:--}
 
-swift build -c $CONFIG --arch arm64 -j 2
+for product in ram ram-helper ram-fixture; do
+  swift build -c $CONFIG --arch arm64 -j 2 --product $product
+done
+APP_OK=0
+if [[ -d Sources/RAMApp ]] && swift build -c $CONFIG --arch arm64 -j 2 --product DownloadMoreRAM; then APP_OK=1; fi
 BIN=.build/arm64-apple-macosx/$CONFIG
 OUT=${RAM_BUILD_OUT:-build/Products.noindex}
 mkdir -p $OUT/bin
@@ -63,7 +67,7 @@ sign "$IDENTITY" ca.bryanyao.DownloadMoreRAM.cli $OUT/bin/ram
 sign "$IDENTITY" ca.bryanyao.DownloadMoreRAM.helper $OUT/bin/ram-helper
 sign "$IDENTITY" ca.bryanyao.DownloadMoreRAM.fixture $OUT/bin/ram-fixture
 
-if [[ -d Sources/RAMApp && -f $BIN/DownloadMoreRAM ]]; then
+if (( APP_OK )) && [[ -f $BIN/DownloadMoreRAM ]]; then
   APP="$OUT/Download More RAM.app"
   rm -rf "$APP"
   mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Helpers" "$APP/Contents/Resources"

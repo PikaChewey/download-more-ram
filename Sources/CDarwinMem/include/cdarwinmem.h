@@ -81,6 +81,11 @@ int dm_proc_idversion(pid_t pid, int32_t *idversion);
 int dm_signal_audit(pid_t pid, int32_t idversion, int sig);
 
 
+/* Resume a process the kernel suspended at the memory wall (what loginwindow's Resume button
+ * calls: process_policy RESOURCE_STARVATION restore -> proc_resetpcontrol -> task_resume).
+ * Root only. 0 on success, else errno. */
+int dm_resume_paused(pid_t pid);
+
 /* ---- restore guard --------------------------------------------------------------------- */
 
 /* While armed, SIGINT/SIGTERM/SIGHUP first write restore_value to the sysctl `name` (resolved to a

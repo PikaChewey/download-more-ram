@@ -276,6 +276,13 @@ int dm_signal_audit(pid_t pid, int32_t idversion, int sig) {
     return rv;
 }
 
+/* libsystem_kernel exports this (libproc private header); declared here because the SDK omits it. */
+extern int proc_clear_vmpressure(pid_t pid);
+
+int dm_resume_paused(pid_t pid) {
+    return proc_clear_vmpressure(pid);
+}
+
 /* ---- restore guard ------------------------------------------------------------------------- */
 
 static int g_guard_mib[CTL_MAXNAME];

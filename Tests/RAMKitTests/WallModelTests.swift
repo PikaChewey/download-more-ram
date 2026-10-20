@@ -103,3 +103,25 @@ struct WallInsightsTests {
         #expect(i.stillPausedApps == ["Raycast"])
     }
 }
+
+@Suite("Resuming paused apps")
+struct ResumeTests {
+    @Test func onlyTheKernelsOwnPauseQualifies() {
+        #expect(PausedApps.mayResume(0x1405410))      // Claude/Firefox/... at 06:45 on the target
+        #expect(PausedApps.mayResume(0xa5405410))     // Raycast's WebKit helpers
+        #expect(!PausedApps.mayResume(0x405410))      // registered to be paused, not paused
+        #expect(!PausedApps.mayResume(0))
+    }
+
+    @Test(.enabled(if: geteuid() != 0)) func needsRoot() {
+        #expect(PausedApps.resume(pid: getpid()) == .failure(.notRoot))
+    }
+
+    @Test func safeOnlyWhenTheWallHasReceded() {
+        let sys = fakeSystem()
+        #expect(PausedApps.safeToResume(WallStatus(percent: 43, etaSeconds: nil, limitingFactor: .compressorPages, reason: "", imminent: false), system: sys))
+        #expect(!PausedApps.safeToResume(WallStatus(percent: 80, etaSeconds: nil, limitingFactor: .swap, reason: "", imminent: false), system: sys))
+        #expect(!PausedApps.safeToResume(WallStatus(percent: 40, etaSeconds: 0, limitingFactor: .swap, reason: "", imminent: true), system: sys))
+        #expect(!PausedApps.safeToResume(nil, system: sys))
+    }
+}

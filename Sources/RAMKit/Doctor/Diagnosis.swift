@@ -46,8 +46,8 @@ public struct Diagnosis: Codable, Sendable {
 
         var fixes: [Fix] = []
         if !insights.stillPausedApps.isEmpty {
-            fixes.append(Fix(title: "Restart \(insights.stillPausedApps.joined(separator: ", ")): macOS paused part of it at the last wall and never resumed it",
-                             estimateBytes: nil, how: "quit and reopen the app"))
+            fixes.append(Fix(title: "Resume \(insights.stillPausedApps.joined(separator: ", ")): macOS paused them at the memory wall and never resumed them",
+                             estimateBytes: nil, how: reliefAvailable ? "ram resume" : "click Resume in the Force Quit panel, or: sudo ram resume"))
         }
         if let gpu, gpu.footprint > 1 << 30 {
             fixes.append(Fix(title: "Restart Firefox's GPU process (Firefox relaunches it; WebGL/canvas reset)",

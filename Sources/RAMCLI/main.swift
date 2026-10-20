@@ -50,6 +50,7 @@ let usage = """
       ram bench real|synthetic|perf [--trials N] [--hold S] [--cooldown S]
                                 relief vs control, Welch's t-test; JSON to bench/results/
       ram bench report          regenerate docs/BENCHMARKS.md from bench/results/
+      ram resume                resume apps macOS paused at the memory wall (what its Resume button does)
       ram restore               force the kernel back to normal pressure (root)
       ram helper install|uninstall|status
                                 the root helper that lets downloads run without sudo
@@ -153,6 +154,29 @@ case "quit":
     case .ok: print("Sent \(flags.contains("--force") ? "SIGKILL" : "SIGTERM") to \(record.name) (\(pid)), \(Format.bytes(record.footprint)).")
     case .refused(let why): fail("Refused: \(why)", code: 4)
     }
+
+case "resume":
+    let paused = PausedApps.current()
+    guard !paused.isEmpty else { print("No apps are paused by macOS's out-of-memory action."); exit(0) }
+    if geteuid() != 0 && !HelperInstaller.isInstalled {
+        print("macOS paused \(paused.count) process\(paused.count == 1 ? "" : "es") at the memory wall: " + paused.map { "\($0.name) (\($0.pid))" }.joined(separator: ", "))
+        fail("Resuming needs root: click Resume in the Force Quit panel, or run  sudo ram resume  (or install the helper:  sudo ram helper install)", code: 3)
+    }
+    var failures = 0
+    for r in paused {
+        do {
+            if geteuid() == 0 {
+                if case .failure(let why) = PausedApps.resume(pid: r.pid) { throw why }
+            } else {
+                try await HelperBackend().resumePaused(pid: r.pid)
+            }
+            print("Resumed \(r.name) (\(r.pid))")
+        } catch {
+            failures += 1
+            FileHandle.standardError.write(Data("Could not resume \(r.name) (\(r.pid)): \(error)\n".utf8))
+        }
+    }
+    exit(failures == 0 ? 0 : 4)
 
 case "restore":
     let backend: any ReliefBackend = geteuid() == 0 ? DirectSysctlBackend() : HelperBackend()

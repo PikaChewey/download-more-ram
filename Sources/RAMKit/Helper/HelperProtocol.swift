@@ -1,6 +1,6 @@
 import Foundation
 
-/// The root helper's entire surface: three calls, no paths, no shell, no arbitrary sysctl.
+/// The root helper's entire surface: four calls, no paths, no shell, no arbitrary sysctl.
 @objc public protocol RAMHelperXPC {
     /// Signals `level` (2 = warn, 4 = critical) for `holdMs`, then restores normal. Replies nil on
     /// success or a human-readable refusal/error.
@@ -9,6 +9,9 @@ import Foundation
     func restore(reply: @escaping (String?) -> Void)
     /// JSON: {"version": ..., "busy": ..., "lastRelief": ...}.
     func status(reply: @escaping (String) -> Void)
+    /// Resumes `pid` only if the kernel suspended it at the memory wall (PROC_FLAG_PA_SUSP), the way
+    /// loginwindow's Resume button does. Replies nil on success or a reason.
+    func resumePaused(pid: Int, reply: @escaping (String?) -> Void)
 }
 
 public enum HelperConstants {

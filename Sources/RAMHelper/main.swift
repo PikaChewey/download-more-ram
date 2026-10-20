@@ -1,7 +1,8 @@
 // ram-helper: the root launchd daemon behind "Download More RAM".
 //
-// It does exactly one privileged thing: put the kernel into simulated memory pressure for a
-// bounded time and take it back out (kern.memorypressure_manual_trigger, the path Apple's
+// It does two privileged things: put the kernel into simulated memory pressure for a bounded
+// time and take it back out, and resume apps the kernel itself paused at the memory wall (the
+// call behind loginwindow's Resume button) (kern.memorypressure_manual_trigger, the path Apple's
 // `memory_pressure -S` uses). Three XPC calls, validated and rate-limited by HelperPolicy,
 // logged with the caller's pid. Normal pressure is restored on every path: completion, client
 // disconnect, SIGTERM/SIGINT/SIGHUP (signal-safe guard), and crash/SIGKILL (launchd relaunches
@@ -58,6 +59,20 @@ final class HelperService: NSObject, RAMHelperXPC, NSXPCListenerDelegate, @unche
         log.notice("restore from pid \(caller, privacy: .public): errno \(err, privacy: .public)")
         touch()
         reply(err == 0 ? nil : ReliefError.restoreFailed(err).description)
+    }
+
+    func resumePaused(pid: Int, reply: @escaping (String?) -> Void) {
+        let caller = NSXPCConnection.current()?.processIdentifier ?? -1
+        let result = PausedApps.resume(pid: Int32(clamping: pid))
+        switch result {
+        case .success:
+            log.notice("resumed pid \(pid, privacy: .public) (paused at the memory wall) for pid \(caller, privacy: .public)")
+            reply(nil)
+        case .failure(let why):
+            log.notice("refused resume of pid \(pid, privacy: .public) for pid \(caller, privacy: .public): \(why.description, privacy: .public)")
+            reply(why.description)
+        }
+        touch()
     }
 
     func status(reply: @escaping (String) -> Void) {

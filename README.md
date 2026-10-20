@@ -7,10 +7,21 @@ agents left running, and warns you before "Your system has run out of applicatio
 <p align="center"><img src="docs/demo.svg" alt="ram download: a real recorded run, the kernel signal then a Firefox GPU restart, 921.2 MB back" width="760"></p>
 
 <!-- DEMO:BEGIN -->
-<!-- Filled with the output of a real `ram download` on the author's Mac. -->
+Real output, 2026-10-20 13:10 on the author's Mac ([full log](bench/logs/demo-download.log), [receipt and frames](bench/results/2026-10-20T13-10-demo-recording.json)):
+
+```
+$ ram download --levers firefox-gpu
+Downloading RAM — macOS memory-pressure signal (critical, 10s) via helper, measured with phys_footprint
+✓ Downloaded 921.2 MB of RAM in 24s
+  macOS memory-pressure signal          -5.6 MB  Firefox +13.5 MB, Claude Code +704 KB, Claude Code +608 KB, Claude +384 KB
+  Restart Firefox's GPU process       +926.8 MB  GPU process 2.50 GB → 1.48 GB
+  not counted (busy): Claude Code -806.5 MB
+  Swap 13.12 GB → 13.43 GB · pressure warning → warning · wall 37% → 36%
+  Measured with phys_footprint (Activity Monitor's Memory column); busy apps and apps that started/quit are not counted.
+```
 <!-- DEMO:END -->
 
-## What it found on the author's 16 GB MacBook (one day, 2026-10-20)
+## What it found on the author's 16 GB MacBook (one week in October 2026)
 
 - **macOS killed 6,645 background processes in 11 minutes** (Oct 16, 4 AM; cfprefsd alone 491 times) while the
   Claude app and what its agent sessions launched held 45.5 GB, 35.7 GB of it in 23 python3.12 processes.
@@ -32,8 +43,8 @@ agents left running, and warns you before "Your system has run out of applicatio
 macOS compresses idle memory, then pages it out to swapfiles it adds 1 GB at a time. The "out of application
 memory" panel appears when **swap is nearly full and macOS fails to add the next swapfile**, or when the
 compressor hits its ceiling (about 49 GB of compressed data on a 16 GB Mac). The kernel then **pauses your
-biggest app every 5 seconds** until you click Resume. Free disk space is usually not the problem: the panel showed
-up here with 93 GB free. [The kernel source, line by line →](docs/HOW_IT_WORKS.md)
+biggest app every 5 seconds** until you click Resume. Free disk space is usually not the problem: this Mac hit the
+wall with tens of gigabytes free. [The kernel source, line by line →](docs/HOW_IT_WORKS.md)
 
 ## What it does
 

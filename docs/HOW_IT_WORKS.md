@@ -25,8 +25,9 @@ loginwindow to show the Force Quit panel. Every 5 seconds it pauses the next one
 "(paused)" next to app names. If one process that didn't register holds more than half of all
 compressed memory, it is killed outright instead, with no dialog.
 
-**Free disk space is usually not the cause.** On the author's Mac the dialog appeared with 93 GB
-free. Creating `swapfile11` failed once (a transient error), and that alone was enough.
+**Free disk space is usually not the cause.** On the author's Mac the dialog appeared with tens of
+gigabytes free. Swap had stopped at 11 swapfiles because creating the next one (`swapfile11`) failed, and that
+alone is enough.
 
 `ram` shows how close you are to each limit ("38% to the wall"), predicts when you'll hit it at
 the current rate, and warns the moment swap is full and no new swapfile has appeared for 15 s.

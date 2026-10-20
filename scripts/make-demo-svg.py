@@ -23,7 +23,9 @@ frames, r = rec["frames"], rec["receipt"]
 
 W, LH, PAD = 760, 20, 18
 lines_static = []  # (y, text, cls)
-type_cmd = rec.get("command", "ram download")
+# Recordings made before `command` was saved: rebuild it from the levers that ran.
+_levers = [l["kind"] for l in rec["receipt"].get("levers") or [] if l["kind"] != "signal"]
+type_cmd = rec.get("command") or ("ram download" + (" --levers " + ",".join(_levers) if _levers else ""))
 t_cmd = 0.9                      # typing finishes
 t0 = t_cmd + 0.4                 # first progress frame
 y = PAD + 30

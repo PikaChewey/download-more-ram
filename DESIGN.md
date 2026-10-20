@@ -74,12 +74,14 @@ App icon: the light DIMM with a downward arrow on a graphite tile (`Resources/Ap
 5. Where your RAM is: top 5 rows (apps and agent sessions with real titles), "All" to expand.
 6. Footer: Autopilot toggle, helper dot, `…` menu (% in menu bar, at login, quit). No explanatory text.
 
-## 6. Hero moment (18 s clip, 1:1, from a real recording)
+## 6. Hero moment (18 s clip, 4:5, from a real recording)
 
-0-1 s real menu bar, "38%" · 1-3 s panel opens, hero 38%, rows with real sizes, paused line · 3-4 s press blink ·
-4-9 s sheet: chips fill, real GB count up, wall ticks down · 9-11 s payoff "6.02 GB back" · 11-14 s receipt prints,
-lever rows · 14-16 s panel closes, lower number in the bar · 16-18 s end card "Download More RAM · free · native".
-The clip is rendered offscreen from the recorded progress frames (no screen recording, no stock sounds).
+Cold open, because feeds autoplay muted and people scroll on: 0 s the panel is already open on the real numbers ·
+0.25 s press blink · 0.7 s sheet counting (the signal; the 2 s baseline is measured but not shown) · 5.6 s levers
+land · 6.6 s payoff "921.2 MB back" · 8.6-14.4 s receipt prints, lever rows · 14.4 s panel closes, lower number
+in the bar · 15-18 s end card "Download More RAM · free · native". 1080x1350 with the 360 pt panel drawn at 2.6x,
+so it fills the width and 11 pt text is 29 px (readable in a phone feed). Rendered offscreen from the recorded
+progress frames (no screen recording, no stock sounds).
 
 ## 7. Anti-goals
 

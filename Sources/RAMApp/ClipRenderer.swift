@@ -6,7 +6,7 @@ import RAMKit
 import SwiftUI
 
 /// `DownloadMoreRAM --render-clip <recording.json> <out.mp4>`: the 18 s hero clip (DESIGN.md section 6)
-/// rendered offscreen at 1080x1080, 30 fps, from a recording `ram download --record` wrote. Every
+/// rendered offscreen at 1080x1350 (4:5), 30 fps, from a recording `ram download --record` wrote. Every
 /// number is the recording's: the starting wall percent, the panel's rows, the live count, the lever
 /// results, the receipt. No screen recording, no sound. A JSON sidecar next to the mp4 names the
 /// recording and its sha256.
@@ -28,28 +28,33 @@ enum ClipRenderer {
         var receipt: Receipt
     }
 
-    static let pixels = 1080
+    /// 4:5 portrait, the tallest shape the X feed shows uncropped, so the panel can fill the width.
+    static let pixelWidth = 1080
+    static let pixelHeight = 1350
     static let fps = 30
     static let seconds = 18.0
-    /// Logical points per frame edge: the 360 pt panel is rendered at 2x (11 pt text = 22 px).
-    static let scale: CGFloat = 2
-    static var points: CGFloat { CGFloat(pixels) / scale }
+    /// The 360 pt panel is drawn at 2.6x: it spans 87% of the frame and 11 pt text is 29 px, readable
+    /// in a phone feed (the whole panel plus the menu bar still fits the 519 pt height).
+    static let scale: CGFloat = 2.6
+    static var pointWidth: CGFloat { CGFloat(pixelWidth) / scale }
+    static var pointHeight: CGFloat { CGFloat(pixelHeight) / scale }
 
-    /// The beats, in clip seconds.
+    /// The beats, in clip seconds. Cold open: the panel is up on the first frame and the download is
+    /// moving before 1 s (feeds autoplay muted and people scroll on), then payoff, receipt, end card.
     enum Beat {
-        static let highlight = 0.55
-        static let panelIn = 0.75
-        static let press = 3.0
-        static let blinkOff = 3.12
-        static let blinkOn = 3.21
-        static let sheet = 3.35
-        static let download0 = 3.6
-        static let leverPhase = 8.2
-        static let payoff = 9.0
-        static let receipt = 11.0
-        static let close = 14.0
-        static let lowerNumber = 14.3
-        static let end = 16.0
+        static let highlight = 0.0
+        static let panelIn = -0.3
+        static let press = 0.25
+        static let blinkOff = 0.37
+        static let blinkOn = 0.46
+        static let sheet = 0.55
+        static let download0 = 0.7
+        static let leverPhase = 5.6
+        static let payoff = 6.6
+        static let receipt = 8.6
+        static let close = 14.4
+        static let lowerNumber = 14.5
+        static let end = 15.0
     }
 
     enum Failure: Error, CustomStringConvertible {
@@ -78,13 +83,13 @@ enum ClipRenderer {
                 "recording": recordingPath,
                 "sha256": SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined(),
                 "output": out.lastPathComponent,
-                "frames": frames, "fps": fps, "seconds": seconds, "size": "\(pixels)x\(pixels)",
+                "frames": frames, "fps": fps, "seconds": seconds, "size": "\(pixelWidth)x\(pixelHeight)",
                 "headline": ReceiptRows.headline(recording.receipt),
                 "renderer": "DownloadMoreRAM --render-clip",
             ]
             let json = try JSONSerialization.data(withJSONObject: sidecar, options: [.prettyPrinted, .sortedKeys])
             try json.write(to: out.deletingPathExtension().appendingPathExtension("json"), options: .atomic)
-            print("rendered: \(out.path) \(frames) frames, \(pixels)x\(pixels) @ \(fps) fps, from \(recordingPath)")
+            print("rendered: \(out.path) \(frames) frames, \(pixelWidth)x\(pixelHeight) @ \(fps) fps, from \(recordingPath)")
             return 0
         } catch {
             FileHandle.standardError.write(Data("render-clip failed: \(error)\n".utf8))
@@ -100,7 +105,7 @@ enum ClipRenderer {
         let writer = try AVAssetWriter(outputURL: url, fileType: .mp4)
         let settings: [String: Any] = [
             AVVideoCodecKey: AVVideoCodecType.h264,
-            AVVideoWidthKey: pixels, AVVideoHeightKey: pixels,
+            AVVideoWidthKey: pixelWidth, AVVideoHeightKey: pixelHeight,
             AVVideoCompressionPropertiesKey: [
                 AVVideoAverageBitRateKey: 12_000_000,
                 AVVideoProfileLevelKey: AVVideoProfileLevelH264HighAutoLevel,
@@ -112,7 +117,7 @@ enum ClipRenderer {
         input.expectsMediaDataInRealTime = false
         let adaptor = AVAssetWriterInputPixelBufferAdaptor(assetWriterInput: input, sourcePixelBufferAttributes: [
             kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA,
-            kCVPixelBufferWidthKey as String: pixels, kCVPixelBufferHeightKey as String: pixels,
+            kCVPixelBufferWidthKey as String: pixelWidth, kCVPixelBufferHeightKey as String: pixelHeight,
         ])
         guard writer.canAdd(input) else { throw Failure.writer("cannot add the video input") }
         writer.add(input)
@@ -129,10 +134,10 @@ enum ClipRenderer {
             CVPixelBufferPoolCreatePixelBuffer(nil, pool, &buffer)
             guard let buffer else { throw Failure.pixelBuffer }
             CVPixelBufferLockBaseAddress(buffer, [])
-            if let ctx = CGContext(data: CVPixelBufferGetBaseAddress(buffer), width: pixels, height: pixels, bitsPerComponent: 8,
+            if let ctx = CGContext(data: CVPixelBufferGetBaseAddress(buffer), width: pixelWidth, height: pixelHeight, bitsPerComponent: 8,
                                    bytesPerRow: CVPixelBufferGetBytesPerRow(buffer), space: CGColorSpaceCreateDeviceRGB(),
                                    bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue) {
-                ctx.draw(image, in: CGRect(x: 0, y: 0, width: pixels, height: pixels))
+                ctx.draw(image, in: CGRect(x: 0, y: 0, width: pixelWidth, height: pixelHeight))
             }
             CVPixelBufferUnlockBaseAddress(buffer, [])
             guard adaptor.append(buffer, withPresentationTime: CMTime(value: CMTimeValue(i), timescale: CMTimeScale(fps))) else {
@@ -147,19 +152,19 @@ enum ClipRenderer {
         return count
     }
 
-    /// One frame: the scene hosted offscreen in dark appearance, drawn at 2x.
+    /// One frame: the scene hosted offscreen in dark appearance, drawn at `scale`.
     static func renderFrame(_ scene: ClipScene) -> CGImage? {
         let host = NSHostingView(rootView: AnyView(scene.environment(\.colorScheme, .dark)))
         host.appearance = NSAppearance(named: .darkAqua)
-        host.frame = NSRect(x: 0, y: 0, width: points, height: points)
+        host.frame = NSRect(x: 0, y: 0, width: pointWidth, height: pointHeight)
         let window = NSWindow(contentRect: host.frame, styleMask: [.borderless], backing: .buffered, defer: true)
         window.appearance = NSAppearance(named: .darkAqua)
         window.contentView = host
         host.layoutSubtreeIfNeeded()
-        guard let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: pixels, pixelsHigh: pixels, bitsPerSample: 8,
+        guard let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: pixelWidth, pixelsHigh: pixelHeight, bitsPerSample: 8,
                                          samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB,
                                          bytesPerRow: 0, bitsPerPixel: 0) else { return nil }
-        rep.size = NSSize(width: points, height: points)
+        rep.size = NSSize(width: pointWidth, height: pointHeight)
         host.cacheDisplay(in: host.bounds, to: rep)
         return rep.cgImage
     }
@@ -173,7 +178,9 @@ final class ClipData {
     let model: AppModel
     let wallBefore: Int
     let wallAfter: Int
-    /// Recording time where the signal window ends (the last frame before levers or `done`).
+    /// Recording time where the signal starts (the 2 s baseline before it is measured, not shown)
+    /// and where its window ends (the last frame before levers or `done`).
+    let holdStart: Double
     let signalEnd: Double
     let leverFrames: [ClipRenderer.Frame]
     let extraLevers: [LeverResult]
@@ -188,6 +195,7 @@ final class ClipData {
         extraLevers = (r.receipt.levers ?? []).filter { $0.kind != .kernelSignal }
         let signalFrames = r.frames.filter { $0.lever == nil && $0.phase != "done" }
         signalEnd = signalFrames.last?.t ?? r.frames.last?.t ?? 1
+        holdStart = min(signalEnd, r.frames.first { $0.phase == "holding" }?.t ?? 0)
         clock = r.receipt.startedAt.formatted(Date.FormatStyle(date: .omitted, time: .shortened))
 
         let model = AppModel(live: false, defaults: UserDefaults(suiteName: "ca.bryanyao.DownloadMoreRAM.clip") ?? .standard)
@@ -255,7 +263,6 @@ struct ClipScene: View {
     private let p = Theme.dark
 
     var body: some View {
-        let side = ClipRenderer.points
         ZStack(alignment: .top) {
             p.surface
             VStack(spacing: 0) {
@@ -278,7 +285,7 @@ struct ClipScene: View {
                 EndCard().opacity(min(1, (t - Beat.end) / 0.3))
             }
         }
-        .frame(width: side, height: side)
+        .frame(width: ClipRenderer.pointWidth, height: ClipRenderer.pointHeight)
     }
 }
 
@@ -358,14 +365,14 @@ struct ClipPanel: View {
         .shadow(color: .black.opacity(0.45), radius: 18, y: 8)
     }
 
-    /// Recording time for the sheet: the signal window stretched over 3.6-8.2 s (or to 9.0 s when
-    /// no lever ran), then the levers landing until the payoff.
+    /// Recording time for the sheet: the signal window stretched from `download0` to `leverPhase` (or
+    /// to `payoff` when no lever ran), then the levers landing until the payoff.
     private var sheetProgress: ReliefProgress {
         let hasLevers = !data.extraLevers.isEmpty
         let signalEnd = hasLevers ? Beat.leverPhase : Beat.payoff
         if t < signalEnd {
             let k = max(0, (t - Beat.download0) / (signalEnd - Beat.download0))
-            return data.progress(at: k * data.signalEnd)
+            return data.progress(at: data.holdStart + k * (data.signalEnd - data.holdStart))
         }
         // Lever phase: recorded beats if the recording has them, else the receipt's results landing in order.
         var p = data.progress(at: data.signalEnd)

@@ -181,6 +181,13 @@ public enum ProcessSampler {
         return Array(parts)
     }
 
+    /// The value of one environment variable of a same-user process (nothing else is read out).
+    public static func env(pid: Int32, name: String) -> String? {
+        var buf = [CChar](repeating: 0, count: 4096)
+        guard dm_proc_env(pid, name, &buf, buf.count) == 0 else { return nil }
+        return String(cBuffer: buf)
+    }
+
     /// The current working directory of a same-user process.
     public static func cwd(pid: Int32) -> String? {
         var buf = [CChar](repeating: 0, count: Int(MAXPATHLEN) + 1)

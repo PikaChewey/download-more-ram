@@ -16,6 +16,8 @@ public struct Diagnosis: Codable, Sendable {
     public var agentBytes: UInt64
     public var quietAgentCount: Int
     public var quietAgentBytes: UInt64
+    public var archivedAgentCount: Int
+    public var archivedAgentBytes: UInt64
     public var leftovers: [Leftover]
     public var firefoxBytes: UInt64?
     public var firefoxGPUBytes: UInt64?
@@ -53,7 +55,9 @@ public struct Diagnosis: Codable, Sendable {
             spinning.sort { $0.cores > $1.cores }
         }
         let insights = WallInsights.from(snapshot, system: system)
+        let archived = sessions.filter(\.archived)
         let quiet = sessions.filter { s in
+            guard !s.archived else { return false }
             if let last = s.lastActive { return now.timeIntervalSince(last) > quietAfterS }
             return false
         }
@@ -72,6 +76,11 @@ public struct Diagnosis: Codable, Sendable {
         if let gpu, gpu.footprint > 1 << 30 {
             fixes.append(Fix(title: "Restart Firefox's GPU process (Firefox relaunches it; WebGL/canvas reset)",
                              estimateBytes: gpu.footprint, how: "ram firefox gpu-restart"))
+        }
+        if !archived.isEmpty {
+            let bytes = archived.reduce(UInt64(0)) { $0 + $1.footprint }
+            fixes.append(Fix(title: "Quit \(archived.count) Claude Code session\(archived.count == 1 ? "" : "s") you archived that \(archived.count == 1 ? "is" : "are") still running",
+                             estimateBytes: bytes, how: "ram agents --quit-archived --yes"))
         }
         if !quiet.isEmpty {
             let bytes = quiet.reduce(UInt64(0)) { $0 + $1.footprint }
@@ -98,6 +107,7 @@ public struct Diagnosis: Codable, Sendable {
             topApps: groups.prefix(6).map { AppSummaryLine(name: $0.name, footprint: $0.footprint, processes: $0.processCount) },
             agentCount: sessions.count, agentBytes: sessions.reduce(0) { $0 + $1.footprint },
             quietAgentCount: quiet.count, quietAgentBytes: quiet.reduce(0) { $0 + $1.footprint },
+            archivedAgentCount: archived.count, archivedAgentBytes: archived.reduce(0) { $0 + $1.footprint },
             leftovers: leftovers, firefoxBytes: firefox?.footprint, firefoxGPUBytes: gpu?.footprint,
             firefoxUnloaderOn: unloader, reliefAvailable: reliefAvailable, spinningWhilePaused: spinning, fixes: fixes)
     }

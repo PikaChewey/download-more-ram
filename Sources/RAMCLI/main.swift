@@ -39,7 +39,8 @@ let usage = """
 
       ram                       memory, swap, distance to the wall, top apps
       ram apps [--all]          every app's memory, grouped like Force Quit
-      ram agents                AI agent sessions and the leftovers they forgot
+      ram agents [--quit-archived [--yes]]
+                                AI agent sessions (titles, last activity, archived-but-running) and leftovers
       ram download [--hold S] [--dry-run] [--record FILE]
                                 ask the kernel for its memory-pressure response, measure what came back
       ram quit <pid> [--force]  quit a leftover (SIGTERM; --force sends SIGKILL)
@@ -123,6 +124,24 @@ case "agents":
     cpu.add(snap)
     let sessions = AgentClassifier.sessions(snap, cpuHistory: cpu)
     let leftovers = AgentClassifier.leftovers(snap, cpuHistory: cpu)
+    if flags.contains("--quit-archived") {
+        let archived = sessions.filter(\.archived)
+        guard !archived.isEmpty else { print("No archived Claude Code sessions are running."); exit(0) }
+        for s in archived { print("  \(s.label) · \(Format.bytes(s.footprint)) · pid \(s.id)") }
+        guard flags.contains("--yes") else {
+            print("These sessions are archived in the Claude app but still running. Quit them with  ram agents --quit-archived --yes")
+            exit(0)
+        }
+        var failed = 0
+        for s in archived {
+            guard let head = s.members.first(where: { $0.pid == s.id }) else { continue }
+            switch SafeKill.terminate(head, escalate: false) {
+            case .ok: print("Quit \(s.label) (\(Format.bytes(s.footprint)))")
+            case .refused(let why): failed += 1; FileHandle.standardError.write(Data("Could not quit \(s.label): \(why)\n".utf8))
+            }
+        }
+        exit(failed == 0 ? 0 : 4)
+    }
     if flags.contains("--json") {
         struct AgentsJSON: Encodable { var sessions: [AgentSession]; var leftovers: [Leftover] }
         printJSON(AgentsJSON(sessions: sessions, leftovers: leftovers))

@@ -69,6 +69,9 @@ int dm_proc_cwd(pid_t pid, char *buf, uint32_t buflen);
 /* KERN_PROCARGS2 argv joined with NUL separators. Returns argc (>= 0) and sets buf and len
  * (the caller frees buf), or -1 on failure (other users' processes fail with EINVAL/EPERM). */
 int dm_proc_argv(pid_t pid, char **buf, size_t *len);
+/* Copies the value of ONE environment variable `name` of a same-user process into buf (from
+ * KERN_PROCARGS2). Never exposes any other variable. 0 on success, ENOENT if unset, else errno. */
+int dm_proc_env(pid_t pid, const char *name, char *buf, size_t buflen);
 /* responsibility_get_pid_responsible_for_pid via dlsym; -1 if the SPI is missing or fails. */
 pid_t dm_responsible_pid(pid_t pid);
 int dm_responsibility_available(void);

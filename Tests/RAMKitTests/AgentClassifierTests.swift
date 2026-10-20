@@ -163,3 +163,47 @@ struct ClaudeTranscriptTests {
         #expect(AgentClassifier.label(forCwd: "/") == "/")
     }
 }
+
+@Suite("Claude desktop sessions")
+struct ClaudeDesktopSessionTests {
+    @Test func readsTitleActivityAndArchivedFlag() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("ram-ccs-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let dir = root.appendingPathComponent("org/user")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        try #"{"sessionId":"local_abc12345","title":"Blender render","lastActivityAt":1792457294910,"isArchived":true}"#
+            .write(to: dir.appendingPathComponent("local_abc12345.json"), atomically: true, encoding: .utf8)
+        let index = ClaudeDesktopSessions(root: root)
+        let s = try #require(index.session(id: "local_abc12345"))
+        #expect(s.title == "Blender render")
+        #expect(s.archived)
+        #expect(abs(try #require(s.lastActivity).timeIntervalSince1970 - 1_792_457_294.91) < 0.01)
+        #expect(index.session(id: "local_missing") == nil)
+        #expect(index.session(id: "../etc/passwd") == nil)
+    }
+
+    @Test func envReaderReturnsOnlyTheNamedVariable() {
+        setenv("RAM_TEST_MARKER", "hello-123", 1)
+        // Our own env as seen by the kernel was captured at exec, so check a variable that existed then.
+        #expect(ProcessSampler.env(pid: getpid(), name: "PATH")?.contains("/usr/bin") == true)
+        #expect(ProcessSampler.env(pid: getpid(), name: "RAM_DEFINITELY_UNSET_VARIABLE") == nil)
+        #expect(ProcessSampler.env(pid: getpid(), name: "PAT") == nil)   // no prefix matches
+    }
+
+    @Test func archivedSessionsAreLabelledAndFlagged() throws {
+        struct Info: ProcessInfoSource {
+            func cwd(pid: Int32) -> String? { "/Users/bryan" }
+            func argv(pid: Int32) -> [String]? { nil }
+            func desktopSession(pid: Int32) -> ClaudeDesktopSession? {
+                ClaudeDesktopSession(id: "local_x", title: "Fix the auth bug", lastActivity: Date(timeIntervalSince1970: 0), archived: true)
+            }
+        }
+        let snap = ProcessSnapshot(timestamp: Date(), records: [
+            rec(500, name: "claude", path: "/Users/bryan/.local/bin/claude", mb: 430),
+        ])
+        let s = try #require(AgentClassifier.sessions(snap, cpuHistory: CPUHistory(), info: Info()).first)
+        #expect(s.label == "Fix the auth bug")
+        #expect(s.archived)
+        #expect(s.lastActive == Date(timeIntervalSince1970: 0))
+    }
+}

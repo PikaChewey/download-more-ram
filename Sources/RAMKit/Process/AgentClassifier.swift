@@ -5,17 +5,75 @@ public protocol ProcessInfoSource: Sendable {
     func cwd(pid: Int32) -> String?
     func argv(pid: Int32) -> [String]?
     func transcriptActivity(sessionID: String) -> Date?
+    /// Claude desktop session metadata for a Claude Code process, when the app launched it.
+    func desktopSession(pid: Int32) -> ClaudeDesktopSession?
 }
 
 extension ProcessInfoSource {
     public func transcriptActivity(sessionID: String) -> Date? { nil }
+    public func desktopSession(pid: Int32) -> ClaudeDesktopSession? { nil }
 }
 
 public struct LiveProcessInfo: ProcessInfoSource {
-    public init() {}
+    let sessions: ClaudeDesktopSessions
+    public init(sessions: ClaudeDesktopSessions = ClaudeDesktopSessions()) { self.sessions = sessions }
     public func cwd(pid: Int32) -> String? { ProcessSampler.cwd(pid: pid) }
     public func argv(pid: Int32) -> [String]? { ProcessSampler.argv(pid: pid) }
     public func transcriptActivity(sessionID: String) -> Date? { ClaudeTranscripts.lastActivity(sessionID: sessionID) }
+    public func desktopSession(pid: Int32) -> ClaudeDesktopSession? {
+        guard let id = ProcessSampler.env(pid: pid, name: ClaudeDesktopSessions.hostSessionVariable) else { return nil }
+        return sessions.session(id: id)
+    }
+}
+
+/// What the Claude desktop app records about a Code-tab session
+/// (~/Library/Application Support/Claude/claude-code-sessions/<org>/<user>/local_<id>.json).
+public struct ClaudeDesktopSession: Codable, Sendable, Equatable {
+    public var id: String
+    public var title: String?
+    public var lastActivity: Date?
+    public var archived: Bool
+}
+
+/// Index of the desktop app's session files. A Claude Code process the app started carries its
+/// session id in `CLAUDE_CODE_HOST_SESSION_ID` (VERIFIED 2026-10-20 on Claude desktop with Claude Code 2.1.299).
+public final class ClaudeDesktopSessions: @unchecked Sendable {
+    public static let hostSessionVariable = "CLAUDE_CODE_HOST_SESSION_ID"
+    let root: URL
+    private let lock = NSLock()
+    private var paths: [String: URL]?
+
+    public init(root: URL = RealUser.home.appendingPathComponent("Library/Application Support/Claude/claude-code-sessions", isDirectory: true)) {
+        self.root = root
+    }
+
+    public func session(id: String) -> ClaudeDesktopSession? {
+        guard id.hasPrefix("local_"), !id.contains("/") else { return nil }
+        guard let url = index()[id], let data = try? Data(contentsOf: url),
+              let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
+        let ms = (obj["lastActivityAt"] as? NSNumber)?.doubleValue
+        return ClaudeDesktopSession(id: id, title: (obj["title"] as? String).flatMap { $0.isEmpty ? nil : $0 },
+                                    lastActivity: ms.map { Date(timeIntervalSince1970: $0 > 1e12 ? $0 / 1000 : $0) },
+                                    archived: (obj["isArchived"] as? Bool) ?? false)
+    }
+
+    /// local_<id> -> file, from a two-level directory walk (org/user), built once per instance.
+    func index() -> [String: URL] {
+        lock.lock(); defer { lock.unlock() }
+        if let paths { return paths }
+        var out: [String: URL] = [:]
+        let fm = FileManager.default
+        for org in (try? fm.contentsOfDirectory(at: root, includingPropertiesForKeys: nil)) ?? [] {
+            for user in (try? fm.contentsOfDirectory(at: org, includingPropertiesForKeys: nil)) ?? [] {
+                for file in (try? fm.contentsOfDirectory(at: user, includingPropertiesForKeys: nil)) ?? []
+                where file.pathExtension == "json" && file.lastPathComponent.hasPrefix("local_") {
+                    out[file.deletingPathExtension().lastPathComponent] = file
+                }
+            }
+        }
+        paths = out
+        return out
+    }
 }
 
 /// When each process was last *active*: using more than `activeFraction` of a core between two
@@ -111,8 +169,12 @@ public struct AgentSession: Codable, Sendable, Identifiable {
     public var idleS: Double
     /// CPU use of the session process between the last two samples (fraction of a core).
     public var cpuFraction: Double?
-    /// From the session transcript, when known.
+    /// From the Claude desktop session record, else the session transcript, when known.
     public var lastActive: Date?
+    /// The session's title in the Claude desktop app (shown locally only, never on share cards).
+    public var title: String?
+    /// The user archived this session in the Claude app, yet its processes are still running.
+    public var archived: Bool = false
 }
 
 /// A process that probably outlived its purpose (spec 5.4). Never acted on without a click.
@@ -160,16 +222,18 @@ public enum AgentClassifier {
             }
             let list = members.values.sorted { $0.footprint > $1.footprint }
             let cwd = info.cwd(pid: pid)
-            let lastActive = tool == .claudeCode
+            let desktop = tool == .claudeCode ? info.desktopSession(pid: pid) : nil
+            let lastActive = desktop?.lastActivity ?? (tool == .claudeCode
                 ? info.argv(pid: pid).flatMap(ClaudeTranscripts.sessionID).flatMap { info.transcriptActivity(sessionID: $0) }
-                : nil
-            let label = cwd.map(Self.label(forCwd:)) ?? tool.displayName
+                : nil)
+            let label = desktop?.title ?? cwd.map(Self.label(forCwd:)) ?? tool.displayName
             return AgentSession(
                 id: pid, tool: tool, host: host(of: head, byPid: byPid), cwd: cwd, label: label,
                 footprint: list.reduce(0) { $0 + $1.footprint }, members: list,
                 topChildren: summarize(list.filter { $0.pid != pid }),
                 ageS: age(head, now: now), idleS: cpuHistory.idleSeconds(head.key, now: now),
-                cpuFraction: cpuHistory.cpuFraction(head.key), lastActive: lastActive)
+                cpuFraction: cpuHistory.cpuFraction(head.key), lastActive: lastActive,
+                title: desktop?.title, archived: desktop?.archived ?? false)
         }
         .sorted { $0.footprint > $1.footprint }
     }

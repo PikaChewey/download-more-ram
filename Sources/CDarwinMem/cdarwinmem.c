@@ -230,6 +230,48 @@ int dm_proc_argv(pid_t pid, char **buf, size_t *len) {
     return seen;
 }
 
+int dm_proc_env(pid_t pid, const char *name, char *buf, size_t buflen) {
+    if (buflen == 0 || name == NULL) return EINVAL;
+    buf[0] = '\0';
+    int mib[3] = {CTL_KERN, KERN_ARGMAX, 0};
+    int argmax = 0;
+    size_t sz = sizeof argmax;
+    if (sysctl(mib, 2, &argmax, &sz, NULL, 0) != 0 || argmax <= 0) return errno ? errno : EINVAL;
+    char *raw = malloc((size_t)argmax);
+    if (raw == NULL) return ENOMEM;
+    mib[1] = KERN_PROCARGS2;
+    mib[2] = pid;
+    sz = (size_t)argmax;
+    if (sysctl(mib, 3, raw, &sz, NULL, 0) != 0 || sz < sizeof(int)) { int e = errno; free(raw); return e ? e : EINVAL; }
+    int argc = 0;
+    memcpy(&argc, raw, sizeof argc);
+    char *p = raw + sizeof(int), *end = raw + sz;
+    while (p < end && *p != '\0') p++;          /* exec path */
+    while (p < end && *p == '\0') p++;          /* padding */
+    for (int i = 0; i < argc && p < end; i++) {  /* argv */
+        while (p < end && *p != '\0') p++;
+        if (p < end) p++;
+    }
+    size_t nlen = strlen(name);
+    int rc = ENOENT;
+    while (p < end && *p != '\0') {             /* environment, "NAME=value" each */
+        char *start = p;
+        while (p < end && *p != '\0') p++;
+        size_t len = (size_t)(p - start);
+        if (len > nlen && strncmp(start, name, nlen) == 0 && start[nlen] == '=') {
+            size_t vlen = len - nlen - 1;
+            if (vlen >= buflen) vlen = buflen - 1;
+            memcpy(buf, start + nlen + 1, vlen);
+            buf[vlen] = '\0';
+            rc = 0;
+            break;
+        }
+        if (p < end) p++;
+    }
+    free(raw);
+    return rc;
+}
+
 typedef pid_t (*dm_responsible_fn)(pid_t);
 
 static dm_responsible_fn dm_lookup_responsible(void) {

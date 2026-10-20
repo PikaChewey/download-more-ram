@@ -71,8 +71,13 @@ public enum Render {
         else {
             let total = sessions.reduce(UInt64(0)) { $0 + $1.footprint }
             out += style.bold("\(sessions.count) agent sessions · \(Format.bytes(total))") + "\n"
+            let archived = sessions.filter(\.archived)
+            if !archived.isEmpty {
+                out += style.amber("  \(archived.count) archived in Claude but still running: \(Format.bytes(archived.reduce(UInt64(0)) { $0 + $1.footprint })) · ram agents --quit-archived --yes") + "\n"
+            }
             for s in sessions {
-                var line = "  \(pad(s.tool.displayName, 12)) \(lpad(Format.bytes(s.footprint), 9))  \(pad(s.label, 30))"
+                let tag = s.archived ? style.amber(" [archived]") : ""
+                var line = "  \(pad(s.tool.displayName, 12)) \(lpad(Format.bytes(s.footprint), 9))  \(pad(s.label, 34))\(tag) "
                 if !s.topChildren.isEmpty { line += style.dim(" \(s.topChildren)") }
                 var tail: [String] = []
                 if let host = s.host { tail.append("in \(host)") }
@@ -162,6 +167,7 @@ public enum Render {
         for a in d.topApps { out += "  \(pad(a.name, 22)) \(lpad(Format.bytes(a.footprint), 9))  \(style.dim("\(a.processes) proc"))\n" }
         if d.agentCount > 0 {
             out += "  \(d.agentCount) AI agent sessions hold \(Format.bytes(d.agentBytes))"
+            if d.archivedAgentCount > 0 { out += "; " + style.amber("\(d.archivedAgentCount) archived but still running hold \(Format.bytes(d.archivedAgentBytes))") }
             if d.quietAgentCount > 0 { out += "; \(d.quietAgentCount) quiet for > 6 h hold \(Format.bytes(d.quietAgentBytes))" }
             out += "\n"
         }

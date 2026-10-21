@@ -1,96 +1,146 @@
-# DESIGN — Download More RAM
+# DESIGN — Download More RAM (v2, "thermostat for memory")
 
-Binding for every surface (menu bar item, panel, download sheet, receipt, share card, demo clip).
-Sources: 15 X posts read 2026-10-20 (dates and engagement confirmed via api.fxtwitter.com; raw notes in the
-research pass), Bryan's house style (`~/Documents/VS Code/Projects/insomnia/docs/design.md`, Tutto, Reaper).
-**When X trends and the house style disagree, the house style wins.**
+Binding for every surface: menu bar item, panel, download, receipt, share card, demo clip.
+Replaces v1 (monochrome hairlines), which the owner rejected outright on 2026-10-21. Source: 44 X posts read
+2026-10-21, every date and engagement figure confirmed via api.fxtwitter.com, 22 reply threads read, 35 clips
+frame-sheeted (`docs/research/x-ui-2026-10-21.md`, rows numbered as there; frames in `docs/research/x-ui-2026-10-21/`).
 
-## 1. References
+## 1. References (the rows this design takes from)
 
-| # | Post | Date | Reach | Takeaway used here |
+| # | Post | Date | Likes / views | Taken |
 |---|---|---|---|---|
-| 1 | [Claude Status Bar](https://x.com/mickces/status/2068774236194300210) | 2026-06-21 | 1,447 likes · 144K views | Open on the real menu bar; praised as "this restrained"; repliers asked 3x about multiple sessions |
-| 2 | [Vitals for Mac](https://x.com/attacomsian/status/2103103182213972383) | 2026-09-24 | 519 · 147K | Problem line as the first frame; one giant numeral per beat; "thinks in apps, not processes" |
-| 3 | [Pulse](https://x.com/localhost_5173/status/2108859236990198145) | 2026-10-10 | 646 · 25K | Dot-matrix progress/sparklines; near-black, calm |
-| 4 | [BlitzClean](https://x.com/virgilerietsch/status/2107463995070291985) | 2026-10-06 | 979 · 158K | RAM by app and AI agent; red only on the bad numbers; AI-video tells criticised |
-| 5 | [Mole](https://x.com/HiTw93/status/2053834228165673459) | 2026-05-11 | 2,433 · 516K | Destructive one-click actions called "a bit dangerous"; wants impact-sorted results |
-| 6 | [Onlight](https://x.com/jamesm/status/2101286767131513088) | 2026-09-19 | 326 · 29K | Only UI complaint in the set: "Doesn't look native to macOS… overdesign" |
-| 7 | [Cloud-bill menu bar](https://x.com/sudo_overflow/status/2089622151804735672) | 2026-08-18 | 953 · 79K | Big light numeral, smaller decimals, "● live · 4s ago" |
-| 8 | [Janus](https://x.com/RamitWasTaken/status/2104248845471470001) | 2026-09-27 | 516 · 83K | Colour only on state; "No server, no telemetry" sells |
-| 10 | [Menu blink](https://x.com/gabriell_lab/status/2104946256950813044) | 2026-09-29 | 939 · 42K | 90 ms unhighlight/re-highlight before closing = native feel |
-| 11 | [Tear-off ticket](https://x.com/cabralorenzo/status/2112158571974754507) | 2026-10-19 | 1,821 · 46K | One physical beat; "either tear like paper or be gooey" (commit to one metaphor) |
-| 12 | [loading.dev](https://x.com/jakubkrehel/status/2112204760606802214) | 2026-10-19 | 679 · 19K | Black-on-white dot-matrix indicators |
-| 14 | [Kaptea onboarding](https://x.com/angeloldesigns/status/2109987027320254906) | 2026-10-13 | 169 · 8K | Onboarding modal called "Monstrous… completely blocking their work" |
-| 15 | [steipete: "I smell a leak."](https://x.com/steipete/status/2049290265026773172) | 2026-04-29 | 7,778 · 883K | The exact out-of-memory panel; top reply "You may need to download more RAM." |
+| 1 | [AC remote as a menu-bar app](https://x.com/icanberk/status/2109031477484937571) | 2026-10-10 | 22,933 / 2.18M | Dark instrument popover off the item; one rendered object on top; one light hero numeral with a small unit; a row of tiles; the item speaks (`23°`) |
+| 2 | [Apartment in a popover](https://x.com/0xProbabillity/status/2109978137794883621) | 2026-10-13 | 6,633 / 372K | The object reacts (lamps glow when clicked); big radius; tint marks "on" |
+| 3 | [Blue Star AC via MCP](https://x.com/the_mcnaveen/status/2109599383717335207) | 2026-10-12 | 4,968 / 326K | The panel's tint is the state (slate cool, ember hot) |
+| 5 | [Claude Status Bar](https://x.com/mickces/status/2068774236194300210) | 2026-06-21 | 1,447 / 144K | Restraint in the bar praised: glyph + a few characters |
+| 6 | [ActivityLine](https://x.com/JakeManger/status/2095119830429098491) | 2026-09-02 | 364 / 85K | App rows with real icons and one number; size-as-pride ("2.3 MB is wild") |
+| 8 | [Pulse](https://x.com/localhost_5173/status/2108859236990198145) | 2026-10-10 | 645 / 25K | Dot-matrix texture for live memory data; light numerals with small units |
+| 9 | [Vitals](https://x.com/attacomsian/status/2103103182213972383) | 2026-09-24 | 519 / 147K | "Thinks in apps"; a sentence that says what to stop and what it frees |
+| 14 | [WakeBee](https://x.com/AdityaShips/status/2110024210349502974) | 2026-10-13 | 509 / 48K | Same popover grammar works for a plain utility; one start button |
+| 17 | [Live progress bar mod](https://x.com/kirillvserditov/status/2105790255144063241) | 2026-10-01 | 1,804 / 159K | Textured fill whose colour is the stage; a chip rides the fill edge |
+| 18 | [Metalforge progress](https://x.com/sucodeee/status/2092222674478993525) | 2026-08-25 | 2,871 / 226K | One saturated hue per fill; big number at the right |
+| 22 | [Run Receipt](https://x.com/kail_designs/status/2069383972854149358) | 2026-06-23 | 1,490 / 146K | Thermal receipt as the shareable object ("share invoices like this") |
+| 30 | [shadcn: Liquid Glass on the Mac](https://x.com/shadcn/status/2096797264370950464) | 2026-09-07 | 1,681 / 159K | "Some of the glass, almost none of the liquid"; work UI must feel instant |
+| 31 | [shadcn: count the animations](https://x.com/shadcn/status/2096648867567608084) | 2026-09-06 | 2,961 / 390K | Animate only what communicates what just happened |
+| 37 | [steipete: "I smell a leak."](https://x.com/steipete/status/2049290265026773172) | 2026-04-29 | 7,776 / 883K | The out-of-memory panel is a shared experience: the clip's context |
+| 40 | [DDR5 up another 10-15%](https://x.com/Pirat_Nation/status/2112725810008506604) | 2026-10-21 | 5,680 / 381K | Today's hook: RAM is expensive; download it instead |
 
 ## 2. Principles
 
-1. **The first frame is the real menu bar showing the real number** (#1, #7; problem-first #2, #4). "38%" is the hook.
-2. **One hero numeral per view, tabular, neutral until it matters** (#2, #3, #4, #7). Colour appears only for memory
-   coming back (accent) and for the wall itself (red) (#1, #4, #8).
-3. **Native beats designed** (#6, #1, #14): system type, template icon, no onboarding, no glass.
-4. **The download is a loader with a payoff** (#3, #12, #4, #10): dot-matrix chips fill like a RAM stick while real
-   measured gigabytes count up; the receipt "prints" once (#11), one metaphor only.
-5. **Rows are apps and sessions, never pids** (#2, #4, #1): icon + title + size, sorted by size, scales to 30 sessions.
+1. **One object, one number.** The panel is an instrument: a RAM stick drawn as a grid of dot cells and one light
+   numeral. Everything else is quieter (1, 2, 3, 8, 14).
+2. **Temperature is the state, and it never lies.** Frost when far from the wall, amber on the way, ember at the
+   wall (3, 17). The tint follows the measured distance to the wall only; a download does not fake a cool-down.
+3. **The stick is the download.** Pressing Download More RAM fills the stick's cells left to right in frost while the
+   numeral counts measured megabytes: the joke, made literal and honest (17, 18).
+4. **The bar speaks, briefly.** The item is the `memorychip` symbol plus `38%`; during a download it counts the
+   measured amount; at the wall the chip turns ember like a low battery (1, 5).
+5. **Instant and still.** The panel opens in one frame; nothing moves at rest; motion only reports progress or a
+   state change, 120-200 ms, eased, no bounce (30, 31).
+6. **The receipt is the souvenir.** The result is a printed thermal receipt, as a share card, not as live UI (22).
 
 ## 3. Tokens
 
-Neutrals are ink at four opacities over an opaque canvas; one accent; one status red. No gradients, no blur.
+The panel is dark-first: a system material (`.hudWindow`) under a charcoal tint, so text contrast never depends
+on the wallpaper. Light mode keeps the same structure on warm paper. Reduce Transparency: the tint goes opaque.
 
-| Role | Light | Dark | Use |
+| Role | Dark | Light | Use |
 |---|---|---|---|
-| canvas | `#FFFFFF` | `#161616` | panel, sheet, receipt background |
-| surface | `#F4F4F4` | `#202020` | rows on hover, button fill |
-| hairline | `#E3E3E3` | `#2E2E2E` | 0.5 pt dividers |
-| ink | `#111111` | `#F2F2F2` | primary text, hero numeral |
-| ink-2 | `#5C5C5C` | `#A8A8A8` | secondary text |
-| ink-3 | `#6E6E6E` | `#8F8F8F` | tertiary text (still >= 4.5:1) |
-| accent | `#0F7B4F` | `#3DDC97` | memory coming back: download chips, positive deltas, payoff numeral |
-| danger | `#C4291C` | `#FF6B5E` | the wall only: >= 85%, imminent, paused-apps line |
+| tint (over the material) | `#121214` at 72% | `#F4F3EF` at 78% | the panel |
+| surface | `#FFFFFF` at 6% | `#000000` at 4% | tiles, rows on hover, the stick's board |
+| stroke | `#FFFFFF` at 9% | `#000000` at 8% | tile and stick outlines |
+| ink | `#F5F5F3` | `#141414` | numerals, names |
+| ink-2 | `#B4B4AF` | `#45453F` | labels, sublines |
+| ink-3 | `#979792` | `#5E5E58` | quiet values, unlit dots |
+| frost (cool, good, "back") | `#9ED8FF` | `#1D5F8C` | amounts back, the download fill, a far wall |
+| amber (on the way) | `#F2B45A` | `#8A5000` | 60-84% |
+| ember (the wall) | `#FF6B47` | `#9C2B08` | >= 85% or imminent, paused apps |
 
-Contrast: every text token on canvas and surface >= 4.5:1 in both modes (checked by `scripts/contrast.py`).
+Contrast (computed by `scripts/contrast.py`; every text pair must be >= 4.5:1): all six text tokens on the panel and
+on a tile, in both modes, with the tint composited over the usual material and over a worst case (the dark material
+over a white window, the light one over a black window), plus the capsule's text on its ink fill. 50/50 pass. No green
+anywhere (the owner rejected orange next to green), no system blue: frost is the cool end of the temperature scale.
 
-Type: SF Pro (system) for everything; SF Mono only for live numbers in the download sheet and receipt. Sizes:
-hero 56 pt semibold tabular; title 13 pt semibold; body 12 pt; small 11 pt. Units are ink-2 at body size.
+Temperature ramp: wall % 0-55 frost, 55-85 frost → amber, 85-100 amber → ember (interpolated in OKLab-ish sRGB).
 
-Spacing on a 4 pt grid (4, 8, 12, 16, 24). Radii: 6 (controls), 10 (panel), 12 (sheet, receipt).
+Type: SF Pro for UI, SF Pro Light for the big numerals, SF Mono only for small data (amounts in lists, rate, the
+system line) and the printed receipt. hero 60 pt light (unit at 40%), payoff 52 pt light, counter 44 pt light with
+tabular digits (it becomes the payoff, so it shares its face), title 13 pt semibold, body 13 pt, label 11 pt medium
+(ink-2, +0.2 tracking), small 11 pt, mono 12 pt.
+Spacing 4 pt grid (4, 8, 12, 16, 20). Radii: panel 20, tile 14, button capsule, rows 10, stick board 8, dot 1.5.
 
-Motion: springs with no bounce (response 0.30 s, damping 1.0); entrances 200 ms, exits 0.6x; the Download button
-blinks off/on for 90 ms before the sheet opens; nothing animates at rest; Reduce Motion = cross-fades only.
+Motion: open/close 120 ms ease-out (the panel itself appears in one frame); page change 180 ms ease-out cross-fade
+with 6 pt rise; cells light 8 ms apart as progress advances; numeral counts with numericText; button press 90 ms;
+nothing animates at rest; Reduce Motion: cross-fades only, cells jump.
 
-## 4. Icon
+## 4. Menu bar item
 
-Menu bar: a template DIMM (rounded body, four chips, pin row with key notch) at 16 pt, alpha only, never tinted.
-Chips fill with the wall percent (0-4). At the wall (>= 85% or imminent) the body gains a small notch cut-out: state
-is shape, not colour. Optional text "38%" (<= 6 chars, monospaced digits), off by default (menu bars are full).
-App icon: the light DIMM with a downward arrow on a graphite tile (`Resources/AppIcon.icns`).
+`memorychip` (SF Symbol, template, 14 pt) + `38%` (12 pt monospaced digits), text on by default, hideable in `…`.
+While downloading: `memorychip.fill` + the measured amount counting (`+921 MB`), 2 Hz, from the engine's events.
+At the wall (>= 85% or imminent): `memorychip.fill` in ember (non-template), the only time the item has colour,
+like a low battery.
 
-## 5. Panel layout (360 pt, opaque)
+## 5. Panel (360 pt wide)
 
-1. Hero: "38%" + "to the wall" (ink-2), thin bar, one reason line, ETA or "not climbing". Red only >= 85%.
-2. Paused line (only when macOS paused apps): "macOS paused 5 apps · their helpers burn 6.0 cores" + `Resume`.
-3. The one primary action: **Download More RAM** (or "Install helper to download" when unavailable).
-4. Levers ("Also available"): one row per offer with its measured estimate and a `Do it` / remembered toggle.
-5. Where your RAM is: top 5 rows (apps and agent sessions with real titles), "All" to expand.
-6. Footer: Autopilot toggle, helper dot, `…` menu (% in menu bar, at login, quit). No explanatory text.
+1. Header: `Memory` label · `16 GB` (ink-3; the chip in its tooltip) on the left; `…` menu on the right: the helper's state
+   (`Helper 1.1.0 installed`, or install/update), `Always run with downloads ▸` (one toggle per lever), menu-bar %,
+   launch at login, quit.
+2. The stick: 328 x 64 pt, 8 chips of 4 x 4 dot cells (128 cells, 128 MB each on 16 GB) above an edge connector
+   printed inside the board's bottom strip, with the key notch cut into its edge (one object; a separate pin row
+   read as a second, meaningless bar to the outside judge). At rest the first
+   `wall %` of cells are lit in the temperature colour, the rest are ink-3 at 22%.
+3. Hero: `38%` (light 60 pt) + caption `to the out-of-memory wall`; on the right a pill that names what it measures
+   (`steady`, `wall in ~24 min`, ember `wall any second`).
+4. Banners when needed: paused apps (ember tint: `macOS paused 3 apps · their helpers burn 6.0 cores` + `Resume`, a
+   tinted secondary capsule with an ink label, never a second ink capsule), interrupted hold.
+5. Primary button: full-width capsule, 44 pt, `↓ Download More RAM` (ink on dark = white capsule, black text);
+   `Install helper to download` when there is no helper.
+6. Lever tiles in Control Center's grammar, only for levers with something to give back (Firefox GPU · Leftover
+   servers · Archived sessions; paused apps have the banner): two per row, an odd last tile full width; none at all
+   on a calm Mac (the best space under the button is never spent on `none`). Icon in a 28 pt circle, label, measured
+   estimate. Click arms the tile (`Restart it?` / `Quit 2?`) for 3 s; a second click runs a download with that lever.
+   Right-click or the `…` menu: `Always run with downloads`; an always-on lever's circle fills in frost, the way
+   Control Center shows a toggle that is on.
+7. Where it is: label + total, top 4 rows (icon 20 pt, name, subline, size), `All 16`, duplicate-server row.
+8. Footer: Autopilot switch (frost tint); the helper shows here only when it needs a click (`Update helper` /
+   `No helper` / `Helper silent`).
 
-## 6. Hero moment (18 s clip, 4:5, from a real recording)
+Numbers: every amount in the panel, the download page and the receipt rows is SF Pro with tabular digits (frost
+when it is memory back). SF Mono is kept for the receipt's one system line and the printed receipt on the share card.
 
-Cold open, because feeds autoplay muted and people scroll on: 0 s the panel is already open on the real numbers ·
-0.25 s press blink · 0.7 s sheet counting (the signal; the 2 s baseline is measured but not shown) · 5.6 s levers
-land · 6.6 s payoff "921.2 MB back" · 8.6-14.4 s receipt prints, lever rows · 14.4 s panel closes, lower number
-in the bar · 15-18 s end card "Download More RAM · free · native". 1080x1350 with the 360 pt panel drawn at 2.6x,
-so it fills the width and 11 pt text is 29 px (readable in a phone feed). Rendered offscreen from the recorded
-progress frames (no screen recording, no stock sounds).
+## 6. Download and receipt
 
-## 7. Anti-goals
+Download: `Downloading RAM` + phase pill in plain words (`baseline…`, `asking apps…`, `settling…`, `restarting…`,
+`quitting…`, `done`); the stick fills in frost with a bright write-head cell at the edge; the counter (`+921.2 MB`,
+44 pt light with a 20 pt unit, frost when positive); rate and time left; the apps giving memory back; levers landing
+with their measured bytes.
+Receipt (in the panel): `+2.80 GB` payoff (light 52 pt, frost) `back in 24 s`; one line per lever; one quiet line
+`wall 37% → 36% · swap 13.1 → 13.4 GB`; `Share receipt` (primary) and `Done`. When nothing came back the title reads
+`Finished`, there is nothing to share, and `Done` is the primary. Details (not counted, method) sit behind a
+disclosure so the slip stays short.
+Share card (1200 x 675): a paper thermal receipt on charcoal: mono, dashed rules, `DOWNLOAD MORE RAM`, date and
+machine, one line per lever, `TOTAL 2.80 GB BACK`, the wall before → after; beside it the hook, `+2.80 GB` in frost
+over `of RAM downloaded` (the joke the card exists for; the receipt carries the measurement), the lit stick, the
+repo URL.
 
-Bryan: hint or fluff text, overdesign, glass/blur, blue accents, orange+green together, per-second animation while
-idle, anything that is not native-feeling. Commenters: web-flavoured menu bar UI (#6), onboarding modals (#14),
-bloat, `curl | bash` installs, destructive actions one click away without saying what happens (#5), AI-video tells
-(#4), unhandled multiple sessions (#1), crowded menu bars, half-committed skeuomorphism (#11).
+## 7. Hero clip (18 s, 4:5, from a real recording)
 
-## 8. House style shared with sibling projects
+0.0 the real menu bar: chip + `38%`, the panel already open, warm · 0.25 press · 0.7-5.6 the stick fills in frost,
+the counter climbs, the bar counts `+… MB` with the chip blinking at 2 Hz · 5.6-6.6 lever tiles land · 6.6 payoff ·
+8.6-14.4 the receipt · 15-18 end card. Drawn at 2.6x, top-aligned on a dark cool desk: the menu bar is always in
+shot and the main page runs off the bottom into a fade; pages hand over in sequence (out 0.12 s, in 0.18 s with a
+6 pt rise) while the panel's height eases to the next page, never two big numbers on screen at once. Captions <= 5 words per beat. Post copy carries the price hook (40) and the restraint lines
+(binary size, no telemetry, measured with phys_footprint).
 
-Same family as Insomnia, Tutto and Reaper: monochrome instrument feel, opaque canvas, hairlines, SF Pro, template
-menu bar glyph drawn in code, `--render-ui DIR` offscreen renders for every state, near-zero idle cost.
+## 8. Anti-goals
+
+The owner: anything like v1 (grey hairline lists, the generic black bar button, debug-looking lever rows, a text
+wall), orange next to green, unreadable icons, hint or fluff text. Commenters: glass or motion that costs time (30,
+31); the notch as home and a crowded bar; AI-made or fake recordings; ambiguous percentages (say what the number
+is); one-click destructive actions (tiles arm first); copycat smell (the stick and the temperature carry identity,
+not the AC layout verbatim); half-committed metaphors; bloat; rows that VoiceOver reads as one blob.
+
+## 9. House style kept
+
+Native SwiftUI/AppKit, SF Symbols, system type, idle cost near zero, `--render-ui DIR` renders every state in
+light and dark, nothing animates at rest, every number from a measurement.

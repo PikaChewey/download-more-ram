@@ -56,4 +56,15 @@ struct UpgradeTests {
         defer { unsetenv("RAM_RECEIPTS_DIR") }
         #expect(Receipt.defaultDirectory.path == "/tmp/ram-receipts-test")
     }
+
+    @Test func parsesItsOwnByteStrings() {
+        #expect(Format.parseBytes("2.50 GB") == UInt64(2.5 * 1_073_741_824))
+        #expect(Format.parseBytes("926.8 MB") == UInt64((926.8 * 1_048_576).rounded()))
+        #expect(Format.parseBytes("+512 KB") == 524_288)
+        #expect(Format.parseBytes("88 B") == 88)
+        #expect(Format.parseBytes("lots") == nil)
+        #expect(Format.parseBytes("2.50 TB") == nil)
+        let bytes: UInt64 = 2_684_354_560
+        #expect(Format.parseBytes(Format.bytes(bytes)) == bytes)
+    }
 }

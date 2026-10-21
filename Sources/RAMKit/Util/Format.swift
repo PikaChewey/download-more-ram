@@ -16,6 +16,21 @@ public enum Format {
         return sign + body
     }
 
+    /// The inverse of `bytes` for its own output ("2.50 GB", "926.8 MB", "512 KB", "88 B"), binary units.
+    public static func parseBytes(_ text: String) -> UInt64? {
+        let parts = text.trimmingCharacters(in: .whitespaces).split(separator: " ")
+        guard parts.count == 2, let number = Double(parts[0].replacingOccurrences(of: "+", with: "")), number >= 0 else { return nil }
+        let unit: Double
+        switch parts[1] {
+        case "GB": unit = 1024 * 1024 * 1024
+        case "MB": unit = 1024 * 1024
+        case "KB": unit = 1024
+        case "B": unit = 1
+        default: return nil
+        }
+        return UInt64((number * unit).rounded())
+    }
+
     private static let partials: [Character] = ["▏", "▎", "▍", "▌", "▋", "▊", "▉"]
 
     /// A horizontal bar of `width` cells using eighth blocks for the fractional cell.

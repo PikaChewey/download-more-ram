@@ -363,7 +363,8 @@ final class AppModel: ObservableObject {
         self.notifier = notifier
         self.loginItem = loginItem
         autopilotOn = defaults.bool(forKey: Keys.autopilot)
-        menuBarPercent = defaults.bool(forKey: Keys.menuBarPercent)
+        // The item speaks by default (DESIGN.md v2 section 4): `38%` beside the chip, hideable in `…`.
+        menuBarPercent = defaults.object(forKey: Keys.menuBarPercent) as? Bool ?? true
         launchAtLogin = live ? loginItem.isEnabled : false
         alwaysLevers = Set(LeverKind.allCases.filter { $0 != .kernelSignal && defaults.bool(forKey: Keys.always($0)) })
     }
@@ -489,8 +490,15 @@ final class AppModel: ObservableObject {
 
     private func publishGlyph() {
         let pct = Int(latestWall?.percent.rounded() ?? 0)
+        // While a download runs the text counts the measured amount; otherwise it is the distance to the wall.
+        let text: String
+        if downloading, let p = latestProgress, p.phase != .baseline {
+            text = Format.bytes(p.reclaimedSoFar, signed: true)
+        } else {
+            text = menuBarPercent && latestWall != nil ? "\(pct)%" : ""
+        }
         let next = GlyphState(percent: pct, atWall: Theme.atWall(latestWall), downloading: downloading, frame: downloadFrame,
-                              text: menuBarPercent && latestWall != nil ? "\(pct)%" : "")
+                              text: text)
         if next != glyphSubject.value { glyphSubject.send(next) }
     }
 

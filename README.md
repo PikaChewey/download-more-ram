@@ -6,6 +6,9 @@ agents left running, and warns you before "Your system has run out of applicatio
 
 <p align="center"><img src="docs/demo.svg" alt="ram download: a real recorded run, the kernel signal then a Firefox GPU restart, 921.2 MB back" width="760"></p>
 
+<p align="center"><img src="docs/panel.png" alt="The menu bar app before the same run: 37% to the out-of-memory wall on the RAM stick, Download More RAM, a Firefox GPU tile worth about 2.50 GB, and where the memory is" width="300">&nbsp;&nbsp;<img src="docs/share-card.png" alt="The receipt it shares after the run: a printed slip and +921.2 MB of RAM downloaded" width="460"><br>
+<sub>The menu bar app and its share card, from the same recorded run (<a href="docs/clip/download.mp4">18 s clip</a>).</sub></p>
+
 <!-- DEMO:BEGIN -->
 Real output, 2026-10-20 13:10 on the author's Mac ([full log](bench/logs/demo-download.log), [receipt and frames](bench/results/2026-10-20T13-10-demo-recording.json)):
 

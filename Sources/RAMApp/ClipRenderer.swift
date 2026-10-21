@@ -137,6 +137,9 @@ enum ClipRenderer {
             if let ctx = CGContext(data: CVPixelBufferGetBaseAddress(buffer), width: pixelWidth, height: pixelHeight, bitsPerComponent: 8,
                                    bytesPerRow: CVPixelBufferGetBytesPerRow(buffer), space: CGColorSpaceCreateDeviceRGB(),
                                    bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue) {
+                // Pool buffers come back with old contents: start every frame from opaque black.
+                ctx.setFillColor(CGColor(gray: 0, alpha: 1))
+                ctx.fill(CGRect(x: 0, y: 0, width: pixelWidth, height: pixelHeight))
                 ctx.draw(image, in: CGRect(x: 0, y: 0, width: pixelWidth, height: pixelHeight))
             }
             CVPixelBufferUnlockBaseAddress(buffer, [])
@@ -185,6 +188,8 @@ final class ClipData {
     let leverFrames: [ClipRenderer.Frame]
     let extraLevers: [LeverResult]
     let clock: String
+    /// Page heights measured once per page state (see `panelHeight(at:)`).
+    var heights: [String: CGFloat] = [:]
 
     init(_ r: ClipRenderer.Recording) {
         receipt = r.receipt
@@ -205,6 +210,7 @@ final class ClipData {
         model.wall = wm.status()
         model.availability = .helper(version: HelperConstants.version)
         model.report = Self.report(r.receipt)
+        model.report.offers = Self.offers(r.receipt)
         self.model = model
     }
 
@@ -223,6 +229,19 @@ final class ClipData {
         return ProcessReport(timestamp: r.startedAt, rows: rows, totalFootprint: total,
                              appCount: rows.filter { $0.kind == .app }.count, sessionCount: rows.filter { $0.kind == .session }.count,
                              sessions: [], leftovers: [], duplicates: [], offers: [], insights: nil, pausedApps: [], pausedCores: 0)
+    }
+
+    /// The tiles before the press: the levers the recording ran, with the estimate the planner shows (for
+    /// the GPU restart, the GPU process's size before it, from the lever's own detail line).
+    static func offers(_ r: Receipt) -> [LeverOffer] {
+        (r.levers ?? []).filter { $0.kind != .kernelSignal }.map { l in
+            var estimate: UInt64?
+            if let detail = l.detail, let arrow = detail.range(of: " →"),
+               let start = detail.range(of: "GPU process ")?.upperBound, start < arrow.lowerBound {
+                estimate = Format.parseBytes(String(detail[start..<arrow.lowerBound]))
+            }
+            return LeverOffer(kind: l.kind, estimateBytes: estimate, reason: l.title)
+        }
     }
 
     /// The app's bundle on this Mac, for its icon (nothing is drawn for apps that are not installed).
@@ -255,37 +274,131 @@ final class ClipData {
 
 private typealias Beat = ClipRenderer.Beat
 
-/// The whole frame at clip time `t`: desktop, menu bar strip, the panel on its page, the end card.
+extension ClipData {
+    // MARK: Timeline (shared by the panel and the menu bar strip)
+
+    /// Recording time for the sheet: the signal window stretched from `download0` to `leverPhase` (or
+    /// to `payoff` when no lever ran), then the levers landing until the payoff.
+    func sheetProgress(at t: Double) -> ReliefProgress {
+        let hasLevers = !extraLevers.isEmpty
+        let windowEnd = hasLevers ? Beat.leverPhase : Beat.payoff
+        if t < windowEnd {
+            let k = max(0, (t - Beat.download0) / (windowEnd - Beat.download0))
+            return progress(at: holdStart + k * (signalEnd - holdStart))
+        }
+        // Lever phase: the receipt's results landing in order.
+        var p = progress(at: signalEnd)
+        p.phase = .settling
+        let k = min(1, (t - windowEnd) / (Beat.payoff - windowEnd))
+        let n = extraLevers.count
+        let landed = min(n, Int(k * Double(n) + 0.0001))
+        let signal = (receipt.levers ?? []).filter { $0.kind == .kernelSignal }
+        p.leversDone = signal + Array(extraLevers.prefix(landed))
+        p.lever = landed < n ? extraLevers[landed].kind : nil
+        p.reclaimedSoFar = p.leversDone.compactMap(\.bytes).reduce(0, +)
+        if landed == n { p.phase = .done; p.reclaimedSoFar = receipt.headlineBytes }
+        return p
+    }
+
+    func chipFraction(at t: Double) -> Double {
+        let end = extraLevers.isEmpty ? Beat.payoff : Beat.leverPhase
+        if t < end { return max(0, (t - Beat.download0) / (end - Beat.download0)) }
+        return 1
+    }
+
+    // MARK: Panel height
+
+    /// The panel's height at `t`: each page's own height, eased across a page change, the way the real
+    /// panel resizes with its content (a cut reads as a glitch at 30 fps).
+    func panelHeight(at t: Double) -> CGFloat {
+        guard t >= Beat.sheet else { return mainHeight }
+        if t < Beat.payoff { return Self.mix(mainHeight, sheetHeight(around: t), (t - Beat.sheet) / 0.28) }
+        let sheetEnd = sheetHeight(at: Beat.payoff - 0.001)
+        if t < Beat.receipt { return Self.mix(sheetEnd, payoffHeight, (t - Beat.payoff) / 0.28) }
+        return Self.mix(payoffHeight, receiptHeight, (t - Beat.receipt) / 0.32)
+    }
+
+    private static func mix(_ a: CGFloat, _ b: CGFloat, _ x: Double) -> CGFloat {
+        let k = min(1, max(0, x))
+        return a + (b - a) * CGFloat(k * k * (3 - 2 * k))
+    }
+
+    /// The sheet grows a row as each lever lands: the last 0.24 s averaged, so the growth eases in.
+    private func sheetHeight(around t: Double) -> CGFloat {
+        let samples = [0, 0.08, 0.16, 0.24].map { max(Beat.sheet, t - $0) }
+        return samples.map { sheetHeight(at: $0) }.reduce(0, +) / CGFloat(samples.count)
+    }
+
+    private func sheetHeight(at t: Double) -> CGFloat {
+        let p = sheetProgress(at: t)
+        let key = "sheet|\(p.phase.rawValue)|\(p.leversDone.count)|\(p.lever?.rawValue ?? "-")"
+        return measured(key) { SheetBody(progress: p, reduceMotion: true, chipFraction: chipFraction(at: t)) }
+    }
+
+    var mainHeight: CGFloat { measured("main") { ClipMain(model: model, pressed: false, blink: false) } }
+    var payoffHeight: CGFloat { measured("payoff") { PayoffView(receipt: receipt) } }
+    var receiptHeight: CGFloat { measured("receipt") { ReceiptCard(receipt: receipt, shareNote: nil, share: {}, done: {}) } }
+
+    /// A page's own height at the panel's width, laid out the way a frame is (dark, offscreen), once.
+    private func measured<V: View>(_ key: String, _ view: () -> V) -> CGFloat {
+        if let h = heights[key] { return h }
+        let host = NSHostingView(rootView: view().frame(width: Theme.width).environment(\.colorScheme, .dark))
+        host.appearance = NSAppearance(named: .darkAqua)
+        let h = host.fittingSize.height
+        heights[key] = h
+        return h
+    }
+}
+
+/// The whole frame at clip time `t`: the desk, the menu bar strip, the panel on its page, the end card.
+/// The frame is top-aligned: the menu bar is always in shot, and the main page (taller than the frame
+/// at this scale) runs off the bottom into a fade.
 struct ClipScene: View {
     var t: Double
     var data: ClipData
 
-    private let p = Theme.dark
-
     var body: some View {
+        let downloading = t >= Beat.download0 && t < Beat.receipt
         ZStack(alignment: .top) {
-            p.surface
             VStack(spacing: 0) {
                 MenuBarStrip(percent: t < Beat.lowerNumber ? data.wallBefore : data.wallAfter,
                              atWall: data.wallBefore >= 85, highlighted: t >= Beat.highlight && t < Beat.close,
-                             clock: data.clock)
-                ZStack(alignment: .top) {
-                    if t >= Beat.panelIn, t < Beat.close + 0.2 {
-                        let enter = Spring.value((t - Beat.panelIn) / 0.3)
-                        let exit = t >= Beat.close ? min(1, (t - Beat.close) / 0.12) : 0
-                        ClipPanel(t: t, data: data)
-                            .scaleEffect(0.97 + 0.03 * enter - 0.02 * exit, anchor: .top)
-                            .opacity(enter * (1 - exit))
-                            .padding(.top, 4)
-                    }
+                             clock: data.clock,
+                             count: downloading ? Format.bytes(data.sheetProgress(at: t).reclaimedSoFar, signed: true) : nil,
+                             frame: Int(t * 2))
+                if t >= Beat.panelIn, t < Beat.close + 0.2 {
+                    let enter = Spring.value((t - Beat.panelIn) / 0.3)
+                    let exit = t >= Beat.close ? min(1, (t - Beat.close) / 0.12) : 0
+                    ClipPanel(t: t, data: data)
+                        .scaleEffect(0.97 + 0.03 * enter - 0.02 * exit, anchor: .top)
+                        .opacity(enter * (1 - exit))
+                        .padding(.top, 6)
                 }
-                Spacer(minLength: 0)
             }
             if t >= Beat.end {
                 EndCard().opacity(min(1, (t - Beat.end) / 0.3))
             }
         }
-        .frame(width: ClipRenderer.pointWidth, height: ClipRenderer.pointHeight)
+        .frame(width: ClipRenderer.pointWidth, height: ClipRenderer.pointHeight, alignment: .top)
+        .background(ClipDesk())
+        .overlay(alignment: .bottom) {
+            LinearGradient(colors: [ClipDesk.bottom.opacity(0), ClipDesk.bottom], startPoint: .top, endPoint: .bottom)
+                .frame(height: 64)
+                .opacity(t >= Beat.end ? 0 : 1)
+        }
+        .clipped()
+    }
+}
+
+/// The desk under the panel: a dark, cool gradient with a faint frost glow, the clip's only backdrop.
+struct ClipDesk: View {
+    static let top = Theme.fixed("#2A2F3C")
+    static let bottom = Theme.fixed("#101216")
+
+    var body: some View {
+        LinearGradient(colors: [Self.top, Self.bottom], startPoint: .top, endPoint: .bottom)
+            .overlay(RadialGradient(colors: [Theme.fixed("#9ED8FF").opacity(0.10), .clear],
+                                    center: UnitPoint(x: 0.78, y: 0.12), startRadius: 0, endRadius: 320))
     }
 }
 
@@ -298,22 +411,29 @@ enum Spring {
     }
 }
 
-/// A drawn menu bar: the template DIMM glyph with the real wall percent, the system's own symbols
-/// and the recording's start time. Nothing else is invented.
+/// A drawn menu bar: the status item as the app draws it (the chip and the wall percent, or the live
+/// count while a download runs), the system's own symbols and the recording's start time. Nothing else
+/// is invented.
 struct MenuBarStrip: View {
     var percent: Int
     var atWall: Bool
     var highlighted: Bool
     var clock: String
+    /// `+31.4 MB` while a download runs, in place of the percent.
+    var count: String? = nil
+    /// The engine's 2 Hz beat: the chip alternates outline and filled while counting.
+    var frame: Int = 0
 
     var body: some View {
+        let glyph = StatusGlyph.image(wallPercent: Double(percent), atWall: atWall, downloading: count != nil, frame: frame)
         HStack(spacing: 14) {
             Image(systemName: "apple.logo").font(.system(size: 13)).foregroundStyle(Theme.ink)
             Spacer()
             HStack(spacing: 5) {
-                Image(nsImage: StatusGlyph.image(wallPercent: Double(percent), atWall: atWall)).renderingMode(.template)
+                Image(nsImage: glyph)
+                    .renderingMode(glyph.isTemplate ? .template : .original)
                     .foregroundStyle(Theme.ink)
-                Text("\(percent)%").font(.system(size: 12).monospacedDigit()).foregroundStyle(Theme.ink)
+                Text(count ?? "\(percent)%").font(.system(size: 12).monospacedDigit()).foregroundStyle(Theme.ink)
             }
             .padding(.horizontal, 6).padding(.vertical, 3)
             .background(RoundedRectangle(cornerRadius: 4).fill(highlighted ? Theme.ink.opacity(0.18) : Color.clear))
@@ -327,93 +447,93 @@ struct MenuBarStrip: View {
     }
 }
 
-/// The panel at clip time `t`: main (press + blink), sheet, payoff, receipt.
+/// The panel at clip time `t`: main (press + blink), sheet, payoff, receipt. Pages hand over in sequence
+/// (the old one fades out in 0.12 s, then the new one rises 6 pt as it fades in, as in the app) while the
+/// panel's height eases to the new page.
 struct ClipPanel: View {
     var t: Double
     var data: ClipData
 
     var body: some View {
         ZStack(alignment: .top) {
-            if t < Beat.sheet + 0.2 {
+            if t < Beat.sheet + 0.12 {
                 ClipMain(model: data.model, pressed: t >= Beat.press && t < Beat.blinkOff, blink: t >= Beat.blinkOff && t < Beat.blinkOn)
-                    .opacity(t < Beat.sheet ? 1 : 1 - (t - Beat.sheet) / 0.2)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .opacity(Self.fadeOut(t, from: Beat.sheet))
             }
-            if t >= Beat.sheet, t < Beat.payoff + 0.2 {
-                SheetBody(progress: sheetProgress, reduceMotion: true, chipFraction: chipFraction)
-                    .padding(12)
-                    .background(Theme.surface)
-                    .opacity(min(1, (t - Beat.sheet) / 0.2) * (t < Beat.payoff ? 1 : 1 - (t - Beat.payoff) / 0.2))
+            if t >= Beat.sheet + Self.handover, t < Beat.payoff + 0.12 {
+                let k = Self.fadeIn(t - Beat.sheet - Self.handover)
+                SheetBody(progress: data.sheetProgress(at: t), reduceMotion: true, chipFraction: data.chipFraction(at: t))
+                    .fixedSize(horizontal: false, vertical: true)
+                    .offset(y: 6 * (1 - k))
+                    .opacity(k * Self.fadeOut(t, from: Beat.payoff))
             }
-            if t >= Beat.payoff, t < Beat.receipt + 0.2 {
+            if t >= Beat.payoff + Self.handover, t < Beat.receipt + 0.12 {
+                let k = Self.fadeIn(t - Beat.payoff - Self.handover)
                 PayoffView(receipt: data.receipt)
-                    .opacity(min(1, (t - Beat.payoff) / 0.2) * (t < Beat.receipt ? 1 : 1 - (t - Beat.receipt) / 0.2))
+                    .fixedSize(horizontal: false, vertical: true)
+                    .offset(y: 6 * (1 - k))
+                    .opacity(k * Self.fadeOut(t, from: Beat.receipt))
             }
-            if t >= Beat.receipt {
-                let slide = Spring.value((t - Beat.receipt) / 0.35)
+            if t >= Beat.receipt + Self.handover {
+                let k = Spring.value((t - Beat.receipt - Self.handover) / 0.35)
                 ReceiptCard(receipt: data.receipt, shareNote: nil, share: {}, done: {})
-                    .padding(12)
-                    .background(Theme.surface)
-                    .offset(y: -420 * (1 - slide))
-                    .opacity(slide)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .offset(y: -24 * (1 - k))
+                    .opacity(k)
             }
         }
-        .frame(width: Theme.width)
-        .fixedSize(horizontal: false, vertical: true)
+        .frame(width: Theme.width, height: data.panelHeight(at: t), alignment: .top)
         .background(Theme.canvas)
-        .clipShape(RoundedRectangle(cornerRadius: Theme.radiusPanel))
-        .overlay(RoundedRectangle(cornerRadius: Theme.radiusPanel).strokeBorder(Theme.hairlineColor, lineWidth: Theme.hairline))
-        .shadow(color: .black.opacity(0.45), radius: 18, y: 8)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.radiusPanel, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Theme.radiusPanel, style: .continuous).strokeBorder(Theme.hairlineColor, lineWidth: 1))
+        .shadow(color: .black.opacity(0.5), radius: 24, y: 10)
     }
 
-    /// Recording time for the sheet: the signal window stretched from `download0` to `leverPhase` (or
-    /// to `payoff` when no lever ran), then the levers landing until the payoff.
-    private var sheetProgress: ReliefProgress {
-        let hasLevers = !data.extraLevers.isEmpty
-        let signalEnd = hasLevers ? Beat.leverPhase : Beat.payoff
-        if t < signalEnd {
-            let k = max(0, (t - Beat.download0) / (signalEnd - Beat.download0))
-            return data.progress(at: data.holdStart + k * (data.signalEnd - data.holdStart))
-        }
-        // Lever phase: recorded beats if the recording has them, else the receipt's results landing in order.
-        var p = data.progress(at: data.signalEnd)
-        p.phase = .settling
-        let k = min(1, (t - signalEnd) / (Beat.payoff - signalEnd))
-        let n = data.extraLevers.count
-        let landed = min(n, Int(k * Double(n) + 0.0001))
-        let signal = (data.receipt.levers ?? []).filter { $0.kind == .kernelSignal }
-        p.leversDone = signal + Array(data.extraLevers.prefix(landed))
-        p.lever = landed < n ? data.extraLevers[landed].kind : nil
-        p.reclaimedSoFar = p.leversDone.compactMap(\.bytes).reduce(0, +)
-        if landed == n { p.phase = .done; p.reclaimedSoFar = data.receipt.headlineBytes }
-        return p
+    /// The next page starts once the last one is gone (its fade-out is 0.12 s).
+    static let handover = 0.12
+
+    /// 0 → 1 over 0.18 s, eased.
+    static func fadeIn(_ dt: Double) -> Double {
+        let x = min(1, max(0, dt / 0.18))
+        return x * x * (3 - 2 * x)
     }
 
-    private var chipFraction: Double {
-        let end = data.extraLevers.isEmpty ? Beat.payoff : Beat.leverPhase
-        if t < end { return max(0, (t - Beat.download0) / (end - Beat.download0)) }
-        return 1
+    /// 1 → 0 over 0.12 s from `start`.
+    static func fadeOut(_ t: Double, from start: Double) -> Double {
+        t < start ? 1 : 1 - min(1, (t - start) / 0.12)
     }
 }
 
-/// The main page with the press and the blink forced from the timeline.
+/// The main page with the press and the blink forced from the timeline (the same layout as `MainView`).
 struct ClipMain: View {
     @ObservedObject var model: AppModel
     var pressed: Bool
     var blink: Bool
 
     var body: some View {
-        VStack(spacing: 0) {
-            HeroView(model: model)
-            Hairline()
-            Button {} label: { Text("Download More RAM") }
-                .buttonStyle(PrimaryButtonStyle(enabled: true, blink: blink, pressed: pressed))
-                .padding(.horizontal, Theme.gutter)
-                .padding(.vertical, 12)
-            Hairline()
-            WhereYourRAMIs(model: model)
-            Hairline()
-            FooterView(model: model)
+        VStack(alignment: .leading, spacing: 0) {
+            PanelHeader(model: model)
+            MemoryStick(mode: .rest(percent: model.wall?.percent ?? 0, imminent: model.wall?.imminent ?? false))
+                .padding(.top, 12)
+            HeroView(model: model).padding(.top, 10)
+            Button {} label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "arrow.down").font(.system(size: 13, weight: .bold))
+                    Text("Download More RAM")
+                }
+            }
+            .buttonStyle(PrimaryButtonStyle(enabled: true, blink: blink, pressed: pressed))
+            .padding(.top, 14)
+            if LeverTiles.hasTiles(model) {
+                LeverTiles(model: model).padding(.top, 8)
+            }
+            WhereItIs(model: model).padding(.top, 18)
+            FooterView(model: model).padding(.top, 10)
         }
+        .padding(.horizontal, Theme.gutter)
+        .padding(.top, 14)
+        .padding(.bottom, 12)
     }
 }
 
@@ -423,27 +543,31 @@ struct PayoffView: View {
 
     var body: some View {
         let r = receipt
-        VStack(spacing: 10) {
+        let (number, unit) = ReceiptRows.split(r.headlineBytes)
+        VStack(spacing: 14) {
+            MemoryStick(mode: r.headlineBytes > 0 ? .done : .rest(percent: r.wallAfter ?? 0, imminent: false))
             if r.headlineBytes > 0 {
-                HStack(alignment: .firstTextBaseline, spacing: 10) {
-                    Text(Format.bytes(r.headlineBytes)).font(Theme.hero).foregroundStyle(Theme.accent).kerning(-1.5)
-                    Text("back").font(.system(size: 20)).foregroundStyle(Theme.ink2)
+                HStack(alignment: .firstTextBaseline, spacing: 0) {
+                    Text("+" + number).font(Theme.payoff).foregroundStyle(Theme.frost).kerning(-1)
+                    Text(" " + unit).font(Theme.heroUnit).foregroundStyle(Theme.frost)
+                    Text(" back").font(Theme.heroUnit).foregroundStyle(Theme.ink2)
                 }
             } else {
-                Text("Nothing came back this time").font(.system(size: 24, weight: .semibold)).foregroundStyle(Theme.ink)
+                Text("Nothing came back").font(.system(size: 28, weight: .light)).foregroundStyle(Theme.ink)
             }
             HStack(spacing: 12) {
                 if let b = r.wallBefore, let a = r.wallAfter { Text("wall \(Format.percent(b)) → \(Format.percent(a))") }
                 Text("swap \(Format.bytes(r.systemBefore.swapUsed)) → \(Format.bytes(r.systemAfter.swapUsed))")
             }
-            .font(Theme.monoBody).foregroundStyle(Theme.ink2)
+            .font(Theme.mono).foregroundStyle(Theme.ink3)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 44)
+        .padding(.horizontal, Theme.gutter)
+        .padding(.vertical, 28)
     }
 }
 
-/// "Download More RAM · free · native".
+/// "Download More RAM · free · native", over the stick lit in frost.
 struct EndCard: View {
     private let p = Theme.dark
 
@@ -451,7 +575,8 @@ struct EndCard: View {
         ZStack {
             p.canvas
             VStack(spacing: 18) {
-                DIMMMark(fill: 1, arrow: true, color: p.ink).frame(width: 120, height: 92)
+                // Wide enough for full-size LEDs (a narrow stick shrinks its dots to specks).
+                MemoryStick(mode: .done, height: 58, palette: p).frame(width: 330)
                 Text("Download More RAM").font(.system(size: 36, weight: .semibold)).foregroundStyle(p.ink)
                 Text("free · native").font(.system(size: 18)).foregroundStyle(p.ink2)
                 Text("github.com/PikaChewey/download-more-ram").font(.system(size: 14)).foregroundStyle(p.ink3)

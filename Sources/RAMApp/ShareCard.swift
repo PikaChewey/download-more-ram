@@ -2,9 +2,9 @@ import AppKit
 import RAMKit
 import SwiftUI
 
-/// The shareable receipt: a 1200x675 PNG on the dark tokens with the payoff, one row per lever,
-/// the machine, swap and wall before → after, and the repo. No session titles, paths or project
-/// names ever appear (lever rows name apps and tools only).
+/// The shareable souvenir (DESIGN.md v2 section 6): a paper thermal receipt on charcoal, one line per lever,
+/// the total, the wall and swap before → after, the machine; beside it the payoff numeral and the stick fully
+/// lit. 1200 x 675. No session titles, paths or project names ever appear (levers name apps and tools only).
 struct ShareCardView: View {
     var receipt: Receipt
 
@@ -13,144 +13,138 @@ struct ShareCardView: View {
 
     var body: some View {
         let r = receipt
-        let levers = (r.levers ?? []).prefix(4)
-        let rows = ReceiptRows.merged(r.apps).filter { !$0.name.contains("/") && !$0.name.hasPrefix("~") }.prefix(4)
-        ZStack(alignment: .topLeading) {
-            p.canvas
-            VStack(alignment: .leading, spacing: 0) {
-                HStack(alignment: .top, spacing: 24) {
-                    VStack(alignment: .leading, spacing: 0) {
-                        Text("Download More RAM").font(.system(size: 26, weight: .medium)).foregroundStyle(p.ink2)
-                        if r.headlineBytes > 0 {
-                            HStack(alignment: .lastTextBaseline, spacing: 20) {
-                                Text(Format.bytes(r.headlineBytes)).font(.system(size: 116, weight: .semibold).monospacedDigit())
-                                    .foregroundStyle(p.accent).kerning(-3)
-                                Text("back").font(.system(size: 54, weight: .medium)).foregroundStyle(p.ink2)
-                            }
-                        } else {
-                            Text("Nothing came back this time").font(.system(size: 64, weight: .semibold)).foregroundStyle(p.ink)
-                                .lineLimit(1).minimumScaleFactor(0.7).padding(.top, 18)
+        let (number, unit) = ReceiptRows.split(r.headlineBytes)
+        ZStack {
+            RadialGradient(colors: [Theme.fixed("#1E1E22"), Theme.fixed("#0E0E10")], center: .init(x: 0.7, y: 0.4),
+                           startRadius: 40, endRadius: 900)
+            HStack(alignment: .center, spacing: 64) {
+                ThermalReceipt(receipt: r)
+                    .frame(width: 440)
+                    .rotationEffect(.degrees(-2.2))
+                    .shadow(color: .black.opacity(0.55), radius: 30, y: 18)
+                VStack(alignment: .leading, spacing: 0) {
+                    Text("DOWNLOAD MORE RAM").font(.system(size: 18, weight: .semibold)).tracking(3).foregroundStyle(p.ink2)
+                    if r.headlineBytes > 0 {
+                        HStack(alignment: .firstTextBaseline, spacing: 0) {
+                            Text("+" + number).font(.system(size: 118, weight: .light).monospacedDigit()).foregroundStyle(p.frost)
+                                .kerning(-3)
+                            Text(" " + unit).font(.system(size: 48, weight: .light)).foregroundStyle(p.frost)
                         }
-                    }
-                    Spacer(minLength: 0)
-                    DIMMMark(fill: 1, arrow: true, color: p.ink).frame(width: 190, height: 140).padding(.top, 8)
-                }
-                Spacer(minLength: 16)
-                VStack(alignment: .leading, spacing: 14) {
-                    if !levers.isEmpty {
-                        ForEach(levers, id: \.kind) { l in
-                            VStack(alignment: .leading, spacing: 2) {
-                                HStack(alignment: .firstTextBaseline, spacing: 24) {
-                                    Text(l.title).font(.system(size: 30, weight: .medium)).foregroundStyle(p.ink).lineLimit(1)
-                                    Spacer(minLength: 16)
-                                    Text(l.bytes.map { Format.bytes($0, signed: true) } ?? "—")
-                                        .font(.system(size: 30, weight: .medium, design: .monospaced).monospacedDigit())
-                                        .foregroundStyle((l.bytes ?? 0) > 0 ? p.accent : p.ink2)
-                                }
-                                if let detail = l.detail, !detail.isEmpty {
-                                    Text(detail).font(.system(size: 21)).foregroundStyle(p.ink2).lineLimit(1)
-                                }
-                            }
-                        }
-                    } else if !rows.isEmpty {
-                        let maxDelta = rows.map { max(0, $0.delta) }.max() ?? 1
-                        ForEach(rows) { row in
-                            HStack(spacing: 24) {
-                                Text(row.name).font(.system(size: 30, weight: .medium)).foregroundStyle(p.ink)
-                                    .lineLimit(1).frame(width: 330, alignment: .leading)
-                                ZStack(alignment: .leading) {
-                                    RoundedRectangle(cornerRadius: 4).fill(p.surface).frame(height: 14)
-                                    if row.delta > 0 {
-                                        RoundedRectangle(cornerRadius: 4).fill(p.accent)
-                                            .frame(width: max(8, 480 * Double(row.delta) / Double(max(1, maxDelta))), height: 14)
-                                    }
-                                }
-                                .frame(width: 480)
-                                Text(Format.bytes(row.delta, signed: true)).font(.system(size: 30, weight: .medium, design: .monospaced).monospacedDigit())
-                                    .foregroundStyle(row.delta > 0 ? p.accent : p.ink2).frame(maxWidth: .infinity, alignment: .trailing)
-                            }
-                        }
+                        .padding(.top, 10)
+                        Text("of RAM downloaded").font(.system(size: 30, weight: .light)).foregroundStyle(p.ink)
                     } else {
-                        Text("No app changed its footprint during the window.").font(.system(size: 30)).foregroundStyle(p.ink2)
+                        Text("Nothing came back").font(.system(size: 64, weight: .light)).foregroundStyle(p.ink).padding(.top, 10)
+                        Text("this time, measured").font(.system(size: 30, weight: .light)).foregroundStyle(p.ink2)
                     }
+                    MemoryStick(mode: r.headlineBytes > 0 ? .done : .rest(percent: r.wallAfter ?? 0, imminent: false), height: 110, palette: p)
+                        .padding(.top, 36)
+                    Text("github.com/PikaChewey/download-more-ram").font(.system(size: 20, weight: .medium)).foregroundStyle(p.ink3)
+                        .padding(.top, 28)
                 }
-                Spacer(minLength: 16)
-                Rectangle().fill(p.hairline).frame(height: 1).padding(.bottom, 18)
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack(spacing: 20) {
-                        Text("\(r.machine.summary) · \(r.machine.osVersion)").font(.system(size: 24, weight: .medium)).foregroundStyle(p.ink)
-                        Text("swap \(Format.bytes(r.systemBefore.swapUsed)) → \(Format.bytes(r.systemAfter.swapUsed))")
-                            .font(.system(size: 24, design: .monospaced).monospacedDigit()).foregroundStyle(p.ink2)
-                        if let b = r.wallBefore, let a = r.wallAfter {
-                            Text("wall \(Format.percent(b)) → \(Format.percent(a))").font(.system(size: 24, design: .monospaced).monospacedDigit()).foregroundStyle(p.ink2)
-                        }
-                        Spacer()
-                    }
-                    HStack {
-                        Text("macOS's own memory-pressure signal · phys_footprint, per app")
-                            .font(.system(size: 20)).foregroundStyle(p.ink3).lineLimit(1)
-                        Spacer(minLength: 24)
-                        Text("github.com/PikaChewey/download-more-ram").font(.system(size: 20, weight: .medium)).foregroundStyle(p.ink2)
-                            .lineLimit(1).fixedSize()
-                    }
-                }
+                .frame(width: 520, alignment: .leading)
             }
-            .padding(.horizontal, 64).padding(.top, 50).padding(.bottom, 44)
         }
         .frame(width: Self.size.width, height: Self.size.height)
         .environment(\.colorScheme, .dark)
     }
 }
 
-/// The RAM stick as a vector mark: body, chips, pins, key notch, and an optional arrow coming down into it.
-struct DIMMMark: View {
-    var fill: Double
-    var arrow: Bool
-    var color: Color = .white
+/// The paper slip: SF Mono on warm paper, dashed rules, torn top and bottom edges.
+struct ThermalReceipt: View {
+    var receipt: Receipt
+    private let paper = Theme.fixed("#F6F3EA")
+    private let ink = Theme.fixed("#1A1A18")
+    private let faint = Theme.fixed("#6B6860")
 
     var body: some View {
-        Canvas { ctx, size in
-            let w = size.width, h = size.height
-            let stickH = h * 0.42
-            let stick = CGRect(x: 0, y: h - stickH, width: w, height: stickH)
-            let line = max(2, w * 0.03)
-            ctx.stroke(Path(roundedRect: stick, cornerRadius: w * 0.06), with: .color(color), lineWidth: line)
-            let chipCount = 4
-            let gap = w * 0.05
-            let chipW = (w - gap * CGFloat(chipCount + 1)) / CGFloat(chipCount)
-            let chipH = stickH * 0.42
-            for i in 0..<chipCount {
-                let chip = CGRect(x: stick.minX + gap + CGFloat(i) * (chipW + gap), y: stick.minY + stickH * 0.16, width: chipW, height: chipH)
-                let f = max(0, min(1, fill * Double(chipCount) - Double(i)))
-                ctx.stroke(Path(roundedRect: chip, cornerRadius: w * 0.012), with: .color(color), lineWidth: line * 0.6)
-                if f > 0 {
-                    ctx.fill(Path(roundedRect: CGRect(x: chip.minX, y: chip.minY, width: chip.width * f, height: chip.height), cornerRadius: w * 0.012), with: .color(color))
-                }
+        let r = receipt
+        let levers = (r.levers ?? []).filter { $0.bytes != nil }
+        VStack(alignment: .leading, spacing: 0) {
+            Text("DOWNLOAD MORE RAM").font(.system(size: 22, weight: .bold, design: .monospaced)).frame(maxWidth: .infinity)
+            Text("RECEIPT  \(Self.date(r.startedAt))").font(.system(size: 15, design: .monospaced)).foregroundStyle(faint)
+                .frame(maxWidth: .infinity).padding(.top, 6)
+            Rule().padding(.vertical, 14)
+            ForEach(levers, id: \.kind) { l in
+                line(LeverResultRow.shortTitle(l.kind).uppercased(), Format.bytes(l.bytes ?? 0, signed: true))
             }
-            let pinY = stick.maxY - stickH * 0.3
-            let pinH = stickH * 0.16
-            let pinCount = 14
-            let pinStep = (w - gap * 2) / CGFloat(pinCount)
-            for i in 0..<pinCount where i != 9 {
-                let x = stick.minX + gap + CGFloat(i) * pinStep + pinStep * 0.25
-                ctx.fill(Path(CGRect(x: x, y: pinY, width: pinStep * 0.5, height: pinH)), with: .color(color))
+            Rule().padding(.vertical, 14)
+            line(r.headlineBytes > 0 ? "TOTAL BACK" : "TOTAL", Format.bytes(max(0, r.headlineBytes)), bold: true)
+            Rule().padding(.vertical, 14)
+            if let b = r.wallBefore, let a = r.wallAfter {
+                line("WALL", "\(Format.percent(b)) → \(Format.percent(a))", faded: true)
             }
-            if arrow {
-                let cx = w / 2
-                let top = h * 0.02
-                let bottom = stick.minY - h * 0.1
-                var shaft = Path()
-                shaft.move(to: CGPoint(x: cx, y: top))
-                shaft.addLine(to: CGPoint(x: cx, y: bottom))
-                ctx.stroke(shaft, with: .color(color), style: StrokeStyle(lineWidth: line * 1.6, lineCap: .round))
-                var head = Path()
-                let half = w * 0.14
-                head.move(to: CGPoint(x: cx - half, y: bottom - half))
-                head.addLine(to: CGPoint(x: cx, y: bottom))
-                head.addLine(to: CGPoint(x: cx + half, y: bottom - half))
-                ctx.stroke(head, with: .color(color), style: StrokeStyle(lineWidth: line * 1.6, lineCap: .round, lineJoin: .round))
-            }
+            line("SWAP", "\(Format.bytes(r.systemBefore.swapUsed)) → \(Format.bytes(r.systemAfter.swapUsed))", faded: true)
+            Text(r.machine.summary.uppercased() + " · " + r.machine.osVersion.uppercased())
+                .font(.system(size: 14, design: .monospaced)).foregroundStyle(faint).padding(.top, 8)
+            Rule().padding(.vertical, 14)
+            Text("MEASURED WITH PHYS_FOOTPRINT\nNO TELEMETRY · THANK YOU")
+                .font(.system(size: 14, design: .monospaced)).foregroundStyle(faint)
+                .multilineTextAlignment(.center).frame(maxWidth: .infinity)
         }
+        .foregroundStyle(ink)
+        .padding(.horizontal, 30)
+        .padding(.vertical, 34)
+        .background(TornPaper().fill(paper))
+    }
+
+    private func line(_ left: String, _ right: String, bold: Bool = false, faded: Bool = false) -> some View {
+        HStack {
+            Text(left)
+            Spacer(minLength: 12)
+            Text(right)
+        }
+        .font(.system(size: bold ? 21 : 17, weight: bold ? .bold : .regular, design: .monospaced))
+        .foregroundStyle(faded ? faint : ink)
+        .padding(.vertical, 3)
+    }
+
+    static func date(_ d: Date) -> String {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.dateFormat = "yyyy-MM-dd HH:mm"
+        return f.string(from: d)
+    }
+}
+
+/// A dashed rule, like a till's.
+struct Rule: View {
+    var body: some View {
+        Line().stroke(style: StrokeStyle(lineWidth: 1.5, dash: [5, 5])).foregroundStyle(Theme.fixed("#B9B4A6")).frame(height: 1.5)
+    }
+
+    struct Line: Shape {
+        func path(in rect: CGRect) -> Path {
+            var p = Path()
+            p.move(to: CGPoint(x: 0, y: rect.midY))
+            p.addLine(to: CGPoint(x: rect.width, y: rect.midY))
+            return p
+        }
+    }
+}
+
+/// Paper with torn (sawtooth) top and bottom edges.
+struct TornPaper: Shape {
+    func path(in rect: CGRect) -> Path {
+        let tooth: CGFloat = 10, depth: CGFloat = 6
+        var p = Path()
+        p.move(to: CGPoint(x: rect.minX, y: rect.minY + depth))
+        var x = rect.minX
+        var up = true
+        while x < rect.maxX {
+            x = min(rect.maxX, x + tooth / 2)
+            p.addLine(to: CGPoint(x: x, y: up ? rect.minY : rect.minY + depth))
+            up.toggle()
+        }
+        p.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY - depth))
+        x = rect.maxX
+        up = true
+        while x > rect.minX {
+            x = max(rect.minX, x - tooth / 2)
+            p.addLine(to: CGPoint(x: x, y: up ? rect.maxY : rect.maxY - depth))
+            up.toggle()
+        }
+        p.closeSubpath()
+        return p
     }
 }
 

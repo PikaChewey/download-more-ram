@@ -10,13 +10,31 @@ final class KeyablePanel: NSPanel {
     override var canBecomeMain: Bool { false }
 }
 
-/// The panel's opaque canvas: the token colour, the 10 pt radius and a hairline edge. No blur.
-final class CanvasView: NSView {
-    override var wantsUpdateLayer: Bool { true }
+/// The panel's backdrop (DESIGN.md v2 section 3): the system popover material, masked to the 20 pt continuous
+/// radius. The SwiftUI tint on top keeps text contrast independent of the wallpaper; with Reduce
+/// Transparency the system draws the material opaque and the panel paints its opaque canvas.
+final class BackdropView: NSVisualEffectView {
+    override init(frame: NSRect) {
+        super.init(frame: frame)
+        material = .popover
+        blendingMode = .behindWindow
+        state = .active
+        maskImage = Self.roundedMask(radius: Theme.radiusPanel)
+    }
 
-    override func updateLayer() {
-        layer?.backgroundColor = Theme.canvasNSColor.cgColor
-        layer?.borderColor = Theme.hairlineNSColor.cgColor
+    required init?(coder: NSCoder) { fatalError("not used") }
+
+    /// A stretchable rounded-rect mask (the material ignores layer corner radii).
+    static func roundedMask(radius: CGFloat) -> NSImage {
+        let edge = 2 * radius + 1
+        let image = NSImage(size: NSSize(width: edge, height: edge), flipped: false) { rect in
+            NSColor.black.setFill()
+            NSBezierPath(roundedRect: rect, xRadius: radius, yRadius: radius).fill()
+            return true
+        }
+        image.capInsets = NSEdgeInsets(top: radius, left: radius, bottom: radius, right: radius)
+        image.resizingMode = .stretch
+        return image
     }
 }
 
@@ -47,13 +65,7 @@ final class PanelController: NSObject {
         panel.isOpaque = false
         panel.hidesOnDeactivate = false
         panel.collectionBehavior = [.transient, .ignoresCycle, .moveToActiveSpace]
-        let canvas = CanvasView(frame: NSRect(x: 0, y: 0, width: Theme.width, height: 200))
-        canvas.wantsLayer = true
-        canvas.layer?.cornerRadius = Theme.radiusPanel
-        canvas.layer?.cornerCurve = .continuous
-        canvas.layer?.masksToBounds = true
-        canvas.layer?.borderWidth = Theme.hairline
-        panel.contentView = canvas
+        panel.contentView = BackdropView(frame: NSRect(x: 0, y: 0, width: Theme.width, height: 200))
     }
 
     var isVisible: Bool { panel.isVisible }
@@ -129,7 +141,7 @@ final class PanelController: NSObject {
         let buttonFrame = window.convertToScreen(button.convert(button.bounds, to: nil))
         var x = buttonFrame.midX - Theme.width / 2
         x = min(max(x, screen.minX + 6), screen.maxX - Theme.width - 6)
-        let y = buttonFrame.minY - height - 4
+        let y = buttonFrame.minY - height - 6
         panel.setFrame(NSRect(x: x, y: y, width: Theme.width, height: height), display: true)
     }
 }
@@ -236,7 +248,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         panelController.toggle(from: sender)
     }
 
-    /// Template image only: never tinted (the menu bar decides the colour).
+    /// A template image (the menu bar decides the colour), except the ember chip at the wall.
     private func updateButton(_ state: GlyphState) {
         guard let button = statusItem?.button else { return }
         button.image = StatusGlyph.image(wallPercent: Double(state.percent), atWall: state.atWall,

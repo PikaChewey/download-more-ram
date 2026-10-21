@@ -45,7 +45,8 @@ enum Snapshots {
         for (name, appearance) in [("light", NSAppearance.Name.aqua), ("dark", .darkAqua)] {
             for page in pages where only.isEmpty || only.contains(page) {
                 let model = makeModel(page, fixtures: fixtures, defaults: defaults)
-                write(renderImage(PanelView(model: model), appearance: appearance), to: dir.appendingPathComponent("\(page)-\(name).png"))
+                write(renderImage(MaterialStandIn(content: PanelView(model: model)), appearance: appearance),
+                      to: dir.appendingPathComponent("\(page)-\(name).png"))
             }
             if only.isEmpty || only.contains("glyph") {
                 let strip = HStack(spacing: 16) {
@@ -126,6 +127,8 @@ enum Snapshots {
 
     static func makeModel(_ page: String, fixtures f: Fixtures, defaults: UserDefaults) -> AppModel {
         let model = AppModel(live: false, defaults: defaults)
+        // One suite serves every page: clear what an earlier page set.
+        for kind in LeverKind.allCases where kind != .kernelSignal { model.setAlways(kind, false) }
         model.system = f.systemNormal
         model.wall = f.wallNormal
         model.report = f.reportNormal
@@ -195,9 +198,11 @@ enum Snapshots {
 
     static func renderImage(_ view: some View, appearance: NSAppearance.Name) -> NSBitmapImageRep? {
         let dark = appearance == .darkAqua
+        // A soft wallpaper behind the panel, so the panel's edge, shadow and translucency read as on a desk.
         let root = view
-            .padding(8)
-            .background(Color(white: dark ? 0.30 : 0.80))
+            .padding(24)
+            .background(LinearGradient(colors: dark ? [Theme.fixed("#3B4252"), Theme.fixed("#1C1F26")] : [Theme.fixed("#C8D3E2"), Theme.fixed("#EEF1F5")],
+                                       startPoint: .topLeading, endPoint: .bottomTrailing))
             .environment(\.colorScheme, dark ? .dark : .light)
         let host = NSHostingView(rootView: AnyView(root))
         host.appearance = NSAppearance(named: appearance)
@@ -235,7 +240,8 @@ enum Snapshots {
     }
 }
 
-/// The status item as it appears in the menu bar: the template glyph in the label colour.
+/// The status item as it appears in the menu bar: the template glyph in the label colour, or the ember
+/// chip as drawn at the wall.
 struct GlyphPreview: View {
     var percent: Double
     var atWall: Bool
@@ -244,14 +250,29 @@ struct GlyphPreview: View {
     var text: String
 
     var body: some View {
+        let image = StatusGlyph.image(wallPercent: percent, atWall: atWall, downloading: downloading, frame: frame)
         HStack(spacing: 4) {
-            Image(nsImage: StatusGlyph.image(wallPercent: percent, atWall: atWall, downloading: downloading, frame: frame))
-                .renderingMode(.template)
+            Image(nsImage: image)
+                .renderingMode(image.isTemplate ? .template : .original)
                 .foregroundStyle(Theme.ink)
             if !text.isEmpty { Text(text).font(.system(size: 12).monospacedDigit()).foregroundStyle(Theme.ink) }
         }
         .padding(.horizontal, 6)
         .padding(.vertical, 3)
+    }
+}
+
+/// Offscreen renders have no window material: this stands in for the popover material over a wallpaper (a
+/// blurred mid tone under the panel's own tint), with the window shadow.
+struct MaterialStandIn<Content: View>: View {
+    var content: Content
+    @Environment(\.colorScheme) private var scheme
+
+    var body: some View {
+        content
+            .background(RoundedRectangle(cornerRadius: Theme.radiusPanel, style: .continuous)
+                .fill(scheme == .dark ? Theme.fixed("#2B2D33") : Theme.fixed("#E4E7EC")))
+            .shadow(color: .black.opacity(scheme == .dark ? 0.5 : 0.22), radius: 18, y: 8)
     }
 }
 #endif

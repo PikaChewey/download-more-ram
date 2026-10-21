@@ -54,6 +54,12 @@ public struct LeverOffer: Codable, Sendable, Equatable {
     public var kind: LeverKind
     public var estimateBytes: UInt64?
     public var reason: String
+
+    public init(kind: LeverKind, estimateBytes: UInt64?, reason: String) {
+        self.kind = kind
+        self.estimateBytes = estimateBytes
+        self.reason = reason
+    }
 }
 
 /// The side effects a lever needs, injectable so tests never touch real processes.

@@ -30,10 +30,18 @@ IDENTITY=${IDENTITY:--}
 for product in ram ram-helper ram-fixture; do
   swift build -c $CONFIG --arch arm64 -j 2 --product $product
 done
-APP_OK=0
-if [[ -d Sources/RAMApp ]] && swift build -c $CONFIG --arch arm64 -j 2 --product DownloadMoreRAM; then APP_OK=1; fi
 BIN=.build/arm64-apple-macosx/$CONFIG
 OUT=${RAM_BUILD_OUT:-build/Products.noindex}
+APP_OK=0
+if [[ -d Sources/RAMApp ]]; then
+  # Never leave an older app behind: when this build fails, install.sh must find nothing to copy.
+  rm -rf "$OUT/Download More RAM.app"
+  if ! swift build -c $CONFIG --arch arm64 -j 2 --product DownloadMoreRAM; then
+    echo "the menu bar app failed to build" >&2
+    exit 1
+  fi
+  APP_OK=1
+fi
 mkdir -p $OUT/bin
 cp $BIN/ram $BIN/ram-helper $BIN/ram-fixture $OUT/bin/
 

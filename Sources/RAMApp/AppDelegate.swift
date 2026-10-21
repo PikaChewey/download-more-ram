@@ -139,11 +139,18 @@ final class PanelController: NSObject {
 struct LaunchFlags {
     var openPanel = false
     var exitAfter: Double?
+    /// `--download-now [levers]`: open the panel and do what its button does (scripts/verify-app.sh
+    /// uses it to test the installed app end to end). Levers are the comma list `ram download` takes.
+    var downloadNow: [LeverKind]?
 
     static func parse(_ args: [String]) -> LaunchFlags {
         var f = LaunchFlags()
         f.openPanel = args.contains("--open-panel")
         if let i = args.firstIndex(of: "--exit-after"), args.count > i + 1 { f.exitAfter = Double(args[i + 1]) }
+        if let i = args.firstIndex(of: "--download-now") {
+            let list = args.count > i + 1 && !args[i + 1].hasPrefix("--") ? args[i + 1] : ""
+            if case .success(let levers) = LeverKind.parse(list) { f.downloadNow = levers }
+        }
         return f
     }
 }
@@ -194,7 +201,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
             MainActor.assumeIsolated { self?.panelController.warmUp() }
         }
-        if flags.openPanel {
+        if let levers = flags.downloadNow {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 4) { [weak self] in
+                MainActor.assumeIsolated {
+                    guard let self, let button = self.statusItem.button else { return }
+                    self.panelController.show(from: button)
+                    Task { @MainActor in
+                        await self.model.checkAvailability(force: true)
+                        self.model.download(trigger: .user, extra: levers)
+                    }
+                }
+            }
+        } else if flags.openPanel {
             // After the warm-up, as a first click would be.
             DispatchQueue.main.asyncAfter(deadline: .now() + 4) { [weak self] in
                 MainActor.assumeIsolated {

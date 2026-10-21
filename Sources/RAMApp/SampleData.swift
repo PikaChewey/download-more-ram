@@ -24,7 +24,7 @@ enum SampleData {
     static let gpuHelper = "/Applications/Firefox.app/Contents/MacOS/gpu-helper.app/Contents/MacOS/Firefox GPU Helper"
     static let claudeApp = "/Applications/Claude.app/Contents/MacOS/Claude"
     static let disclaimer = "/Applications/Claude.app/Contents/Helpers/disclaimer"
-    static let claudeCLI = "/Users/bryan/Library/Application Support/Claude/claude-code/2.1.303/4fa9694b7975/claude.app/Contents/MacOS/claude"
+    static let claudeCLI = "/Users/you/Library/Application Support/Claude/claude-code/2.1.303/4fa9694b7975/claude.app/Contents/MacOS/claude"
     static let python = "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python"
     static let node = "/opt/homebrew/bin/node"
     static let terminal = "/System/Applications/Utilities/Terminal.app/Contents/MacOS/Terminal"
@@ -182,21 +182,21 @@ enum SampleData {
     /// cwd, argv, desktop session records and transcript activity for the scripted processes.
     struct Info: ProcessInfoSource {
         static let titles: [Int32: (String, Bool)] = [
-            610: ("stdout newsletter redesign", false),
+            610: ("Newsletter page redesign", false),
             620: ("Download More RAM v2", false),
             700: ("Fix flaky CI on main", true),
-            703: ("Reaper: kill tree review", true),
-            706: ("Vox dictation latency", true),
-            709: ("Tutto screenshot pipeline", false),
-            712: ("Insomnia heat readout", false),
+            703: ("Process tree review", true),
+            706: ("Dictation latency pass", true),
+            709: ("Screenshot pipeline", false),
+            712: ("Thermal readout", false),
         ]
 
         func cwd(pid: Int32) -> String? {
             switch pid {
-            case 610: "/Users/bryan/Projects/stdout"
-            case 620: "/Users/bryan/Documents/XCode/DownloadMoreRAM"
-            case 630: "/Users/bryan/Documents/XCode/Reaper"
-            case 700...720: "/Users/bryan/Library/Application Support/Claude/scratch-workspaces/c4ac/878f/scratch-2026-10-\(10 + Int(pid) % 9)-\(String(format: "%06x", Int(pid) * 7919))"
+            case 610: "/Users/you/Projects/newsletter"
+            case 620: "/Users/you/Projects/download-more-ram"
+            case 630: "/Users/you/Projects/process-tools"
+            case 700...720: "/Users/you/Library/Application Support/Claude/scratch-workspaces/c4ac/878f/scratch-2026-10-\(10 + Int(pid) % 9)-\(String(format: "%06x", Int(pid) * 7919))"
             default: nil
             }
         }
@@ -205,10 +205,10 @@ enum SampleData {
             switch pid {
             case 620: [SampleData.claudeCLI, "--resume", "2f1c8a9e-5b3d-4a7e-9c1f-0d2e4b6a8c13"]
             case 800: [SampleData.python, "-m", "http.server", "8765", "--bind", "127.0.0.1"]
-            case 801: [SampleData.node, "/Users/bryan/Projects/stdout/node_modules/.bin/vite"]
+            case 801: [SampleData.node, "/Users/you/Projects/newsletter/node_modules/.bin/vite"]
             case 621, 622, 623: [SampleData.node, "/opt/homebrew/bin/rea", "mcp"]
             case 900...920: [SampleData.node, "/opt/homebrew/bin/rea", "mcp"]
-            case 803...818: [SampleData.node, "/Users/bryan/.npm/_npx/2f1c/node_modules/.bin/mcp-server-github", "stdio"]
+            case 803...818: [SampleData.node, "/Users/you/.npm/_npx/2f1c/node_modules/.bin/mcp-server-github", "stdio"]
             default: nil
             }
         }

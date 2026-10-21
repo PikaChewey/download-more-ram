@@ -1,0 +1,88 @@
+{
+ "app_pid": 72749,
+ "levers": "firefox-gpu",
+ "receipt": "2026-10-21T14-06-07.json",
+ "receipt_backend": "helper",
+ "receipt_headline_bytes": 3009597832,
+ "receipt_levers": [
+  {
+   "kind": "signal",
+   "bytes": 65570328
+  },
+  {
+   "kind": "firefox-gpu",
+   "bytes": 2944027504
+  }
+ ],
+ "helper_log_mentions_app_pid": true,
+ "helper_log": [
+  "2026-10-21 14:06:09.492 Df ca.bryanyao.DownloadMoreRAM.helper[72053:1030a3d] [ca.bryanyao.DownloadMoreRAM.helper:helper] relief from pid 72749: critical for 10000 ms"
+ ],
+ "control": {
+  "seconds": 60.0,
+  "memory_used_change": 64634880,
+  "swap_change": -226492416,
+  "wall": [
+   32.671144182719935,
+   32.38839218441376
+  ]
+ },
+ "download": {
+  "seconds": 89.6,
+  "memory_used_change": -82706432,
+  "swap_change": -46071808,
+  "compressed_change": 239992832,
+  "wall": [
+   32.38695175269199,
+   32.398126970225675,
+   32.77561505484785
+  ]
+ },
+ "memory_used_effect_beyond_drift": -179187780,
+ "samples": {
+  "control": [
+   {
+    "t": 1792605902.754024,
+    "memoryUsed": 14372356096,
+    "swapUsed": 9043705856,
+    "compressed": 6886506496,
+    "wall": 32.671144182719935,
+    "pressure": 2
+   },
+   {
+    "t": 1792605962.799836,
+    "memoryUsed": 14436990976,
+    "swapUsed": 8817213440,
+    "compressed": 6952681472,
+    "wall": 32.38839218441376,
+    "pressure": 2
+   }
+  ],
+  "download": [
+   {
+    "t": 1792605962.827472,
+    "memoryUsed": 14447476736,
+    "swapUsed": 8817213440,
+    "compressed": 6948487168,
+    "wall": 32.38695175269199,
+    "pressure": 2
+   },
+   {
+    "t": 1792605992.421053,
+    "memoryUsed": 14640349184,
+    "swapUsed": 8865120256,
+    "compressed": 7018037248,
+    "wall": 32.398126970225675,
+    "pressure": 2
+   },
+   {
+    "t": 1792606052.458657,
+    "memoryUsed": 14364770304,
+    "swapUsed": 8771141632,
+    "compressed": 7188480000,
+    "wall": 32.77561505484785,
+    "pressure": 2
+   }
+  ]
+ }
+}

@@ -125,6 +125,12 @@ from the next two levers. Your receipt shows exactly which apps gave memory back
 - Units match Activity Monitor (16 GB of RAM reads "16.00 GB").
 - Busy apps, and apps that start or quit mid-download, are listed but not counted. Firefox
   closing one of its own tab processes does count, because the app is still running.
+- On a Mac that is already compressing, memory given back shows up as less compressed data, not as free
+  RAM. In a verified run of the installed app (receipt 2.80 GB), the compressor's data fell 3.04 GB in the same
+  24 s while Activity Monitor's "Memory Used" rose 0.34 GB, because the RAM that came back was taken by other
+  processes within seconds ([numbers](../bench/evidence/2026-10-21-app-verify-receipt-window.txt)).
+  `scripts/verify-app.sh` measures a control window, then the installed app's own download, and checks the
+  helper's log for the app's pid.
 - `ram bench` alternates real downloads with *control* runs (identical timing, no signal) in a
   seeded random order. It reports both arms with Welch's t-test, so natural drift can't pass
   for an effect. The README's benchmark block is generated from those JSON files; the findings above

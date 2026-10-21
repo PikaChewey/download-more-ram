@@ -5,7 +5,8 @@ Things the agent must not do itself (passwords, your own settings, publishing).
 | # | What | Command / action | Status |
 |---|---|---|---|
 | H1 | Install the root helper | done 2026-10-20 12:38 | done |
-| H1b | **Reinstall the hardened helper (v1.1.0)**: per-process hold markers, every-signal restore guard, relaunch on SIGKILL, fail-closed caller check, resume only your own processes | `sudo ~/Documents/XCode/DownloadMoreRAM/build/Products.noindex/bin/ram helper install` | waiting |
+| H1b | Reinstall the hardened helper (v1.1.0) | done 2026-10-21 14:03 (your password in the macOS prompt) | done |
+| H11 | **Restart Firefox once**: its low-memory tab unloader is written but Firefox has been running since Oct 16, and it reads the setting only at launch. Until then the signal does nothing for your biggest app | quit and reopen Firefox (tabs come back if "Open previous windows and tabs" is on) | waiting |
 | H2 | Real-machine downloads and benchmarks | approved 2026-10-20 | done |
 | H3 | Firefox low-memory tab unloader (`browser.lowMemoryResponseMask = 3` in user.js) | written 12:42; applies the next time you restart Firefox; undo `ram firefox unloader off` | done |
 | H4 | Restart Firefox's GPU process | done 12:42 (6.02 GB back), 13:10 (926.8 MB) and 14:08 (654.2 MB, the final recorded download) | done |

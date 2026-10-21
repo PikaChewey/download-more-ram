@@ -1,0 +1,13 @@
+# The installed app's verified download (2026-10-21 14:06): system counters across the receipt window
+# Computed from the receipt's own systemBefore/systemAfter samples (copy: bench/results/2026-10-21T14-06-07-app-receipt.json). GB = 2^30 bytes.
+# demand = anonymous - purgeable + wired + compressedUncompressed; Memory Used = anonymous - purgeable + wired + compressorOccupied.
+# Run: bench/results/2026-10-21T14-07-34-app-verify.json, receipt ~/Library/Application Support/DownloadMoreRAM/receipts/2026-10-21T14-06-07.json
+
+receipt headline (sum of levers, phys_footprint): +2.80 GB in 24 s  [('signal', 0.06), ('firefox-gpu', 2.74)]
+memory demand (app + wired + compressed data at full size): 38.10 -> 35.19 GB (-2.90)
+compressed data held by the compressor: 31.19 -> 28.15 GB (-3.04)
+Activity Monitor 'Memory Used' (app + wired + compressor RAM): 13.30 -> 13.64 GB (+0.34)
+  of which wired +0.79 GB, compressor RAM +0.20 GB, app memory -0.66 GB
+compressor before the run: 31.19 GB of data in 6.39 GB of RAM (ratio 4.9:1)
+compressor churn in the window: 775539 compressions, 682266 decompressions
+helper log line for the app's pid 72749: 2026-10-21 14:06:09.492 Df ca.bryanyao.DownloadMoreRAM.helper[72053:1030a3d] [ca.bryanyao.DownloadMoreRAM.helper:helper] relief from pid 72749: critical for 10000 ms

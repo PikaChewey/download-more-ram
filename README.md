@@ -63,7 +63,7 @@ wall with tens of gigabytes free. [The kernel source, line by line →](docs/HOW
 | **Explains past crises** | Reads the reports macOS writes when it runs out of memory (`JetsamEvent`): who held the memory and how many background processes the kernel killed to cope. |
 | **Shows the wall** | "38% to the wall" from the limits the kernel actually checks, the time until you hit it, which app is pushing you there right now ("growing: Firefox +1.08 GB/min (plugin-container ×38)", [recorded](bench/evidence/2026-10-20T13-46-watch.txt)), which app macOS will pause first, a warning the moment swap is full and no new swapfile appears, and a notification when the wall is minutes away that names who is growing. |
 | **Agents** | Memory per Claude Code / Codex / Cursor / Gemini session with its real title, archived-but-running sessions, duplicate MCP servers, orphaned dev servers. |
-| **Firefox** | Turns on Firefox's low-memory tab unloader (shipped **off** outside Nightly: `browser.lowMemoryResponseMask = 0`). |
+| **Firefox** | Turns on Firefox's low-memory tab unloader (shipped **off** outside Nightly: `browser.lowMemoryResponseMask = 0`). Firefox reads it at launch, and `ram doctor` tells you when it is still waiting for a restart. |
 | **Autopilot** | When the wall is near (85%, or under 5 minutes away at the current rate) it sends the signal plus any lever you set to *Always*. On an Electron-heavy Mac expect the signal part to be small (see the honest numbers). |
 
 ## Who actually responds to the signal (read from source, not vibes)
@@ -145,6 +145,17 @@ reports per app what came back, including when nothing did.
 
 **Why is the signal's number small on my Mac?** If you mostly run Electron apps and agents, most of them can't hear
 the signal (see the table). The levers and the agent insights are where the gigabytes are.
+
+**Why doesn't Activity Monitor's "Memory Used" drop?** On a Mac that is already compressing, most of what an
+idle process holds is compressed data. In a verified run of the installed app, the receipt said 2.80 GB back and
+the compressor's data fell 3.04 GB in the same 24 s, yet "Memory Used" rose 0.34 GB: that data had been packed
+about 4.9:1, and the RAM that did come back was taken by other processes within seconds
+([numbers](bench/evidence/2026-10-21-app-verify-receipt-window.txt)). What you get back is room: 2.9 GB less
+memory demand for the kernel to keep compressed.
+
+**Can I check that it works on my Mac?** `scripts/verify-app.sh` measures a control window, then has the installed
+app do exactly what its button does, and checks the helper's log for the app's own pid
+([a run on the author's Mac](bench/results/2026-10-21T14-07-34-app-verify.json)).
 
 **Is restarting Firefox's GPU process safe?** Firefox is built to relaunch it; WebGL and canvas content on open
 pages resets. `ram` only restarts a GPU process that has been up for more than 30 s; Firefox counts a restart

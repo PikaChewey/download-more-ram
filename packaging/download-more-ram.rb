@@ -1,11 +1,12 @@
-# Homebrew formula (tap: PikaChewey/homebrew-tap). Builds from source, so no notarization is needed for
-# the CLI. Fill in url/sha256 after the v1.1.0 tag exists (publishing needs Bryan's yes).
+# Homebrew formula for a tap (PikaChewey/homebrew-tap, not created yet). Builds the CLI from source, so no
+# notarization is needed. url/sha256 are the published v1.1.0 tag.
 class DownloadMoreRam < Formula
   desc "Make macOS apps give memory back via the kernel's own pressure signal, with measured receipts"
   homepage "https://github.com/PikaChewey/download-more-ram"
   url "https://github.com/PikaChewey/download-more-ram/archive/refs/tags/v1.1.0.tar.gz"
-  sha256 "REPLACE_WITH_SHA256_OF_THE_TAG_TARBALL"
+  sha256 "27c595d7b9676629d4018e36d551b44b500c5ed5926ec1bb4216717c346fc8ed"
   license "MIT"
+  depends_on xcode: ["16.0", :build]
   depends_on :macos => :sonoma
   depends_on arch: :arm64
 

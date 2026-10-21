@@ -7,3 +7,4 @@ DerivedData/
 bench/results/*.tmp
 dist/
 .claude/briefs/
+LAUNCH.md

@@ -207,7 +207,7 @@ struct FooterView: View {
                 Toggle(isOn: Binding(get: { model.autopilotOn }, set: { model.setAutopilot($0) })) { Text("Autopilot") }
                     .toggleStyle(MonoToggleStyle())
                 Spacer()
-                HelperDot(state: model.helperState)
+                HelperDot(state: model.helperState, act: { model.installHelper() })
                 MoreMenu(model: model)
             }
         }
@@ -219,21 +219,29 @@ struct FooterView: View {
 /// Filled dot: the helper answers. Hollow: it is missing or silent.
 struct HelperDot: View {
     var state: AppModel.HelperState
+    /// Installs (or updates) the helper; offered only when that would fix something.
+    var act: () -> Void = {}
 
     var body: some View {
-        HStack(spacing: 5) {
+        let dot = HStack(spacing: 5) {
             Circle()
                 .strokeBorder(Theme.ink2, lineWidth: state == .ok ? 3.5 : 1)
                 .frame(width: 7, height: 7)
-            Text(label).font(Theme.small).foregroundStyle(Theme.ink2)
+            Text(label).font(Theme.small).foregroundStyle(state == .outdated ? Theme.ink : Theme.ink2)
         }
         .help(help)
+        if state == .outdated || state == .missing {
+            Button(action: act) { dot }.buttonStyle(.plain)
+        } else {
+            dot
+        }
     }
 
     private var label: String {
         switch state {
         case .checking: "Helper"
         case .ok: "Helper"
+        case .outdated: "Update helper"
         case .missing: "No helper"
         case .notAnswering: "Helper silent"
         }
@@ -243,6 +251,7 @@ struct HelperDot: View {
         switch state {
         case .checking: "Checking the helper"
         case .ok: "The root helper that sends the memory-pressure signal is installed and answering"
+        case .outdated: "An older helper is installed; click to update it (one administrator prompt)"
         case .missing: "Install the helper to download (one administrator prompt)"
         case .notAnswering: "The helper is installed but not answering: sudo ram helper install"
         }

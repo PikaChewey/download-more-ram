@@ -305,6 +305,8 @@ final class AppModel: ObservableObject {
     @Published var shareNote: String?
     @Published var expanded: Set<String> = []
     private var lastWallWarning = Date.distantPast
+    private var lastDownloadExtra: [LeverKind] = []
+    private var retryingAfterRefusal = false
     @Published var showAll = false
     @Published var installing = false
     @Published var downloading = false
@@ -508,12 +510,13 @@ final class AppModel: ObservableObject {
 
     var canDownload: Bool { availability?.backend() != nil }
 
-    enum HelperState: Equatable { case checking, ok, missing, notAnswering }
+    enum HelperState: Equatable { case checking, ok, outdated, missing, notAnswering }
 
     var helperState: HelperState {
         switch availability {
         case .none: .checking
-        case .root, .helper: .ok
+        case .root: .ok
+        case .helper: availability?.helperOutdated == true ? .outdated : .ok
         case .unavailable(let reason): reason == ReliefError.notPermitted.description ? .missing : .notAnswering
         }
     }
@@ -537,6 +540,7 @@ final class AppModel: ObservableObject {
     /// engine's fixed order; each lever is measured on its own.
     func download(trigger: DownloadTrigger, extra: [LeverKind] = []) {
         guard !downloading, let backend = availability?.backend() else { return }
+        lastDownloadExtra = extra
         let wanted = alwaysLevers.union(extra)
         let levers = LeverKind.allCases.filter { $0 != .kernelSignal && wanted.contains($0) }
         downloading = true
@@ -575,6 +579,8 @@ final class AppModel: ObservableObject {
     }
 
     private func finished(_ r: Receipt, trigger: DownloadTrigger) {
+        retryingAfterRefusal = false
+        message = nil
         downloading = false
         downloadFrame = 0
         receipt = r
@@ -593,6 +599,17 @@ final class AppModel: ObservableObject {
     private func failed(_ error: Error, trigger: DownloadTrigger) {
         downloading = false
         downloadFrame = 0
+        // The helper spaces downloads 20 s apart: wait it out once instead of failing.
+        if case let ReliefError.refused(why)? = error as? ReliefError, let wait = ReliefError.retryAfter(why), !retryingAfterRefusal {
+            retryingAfterRefusal = true
+            message = "Starting again in \(wait + 1) s (the helper spaces downloads apart)"
+            let extra = lastDownloadExtra
+            DispatchQueue.main.asyncAfter(deadline: .now() + .seconds(wait + 1)) { [weak self] in
+                MainActor.assumeIsolated { self?.download(trigger: trigger, extra: extra) }
+            }
+            return
+        }
+        retryingAfterRefusal = false
         page = .main
         publishGlyph()
         let text = (error as? ReliefError)?.description ?? error.localizedDescription

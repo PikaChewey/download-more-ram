@@ -57,6 +57,20 @@ public enum FirefoxLevers {
 
     public static func isUnloaderOn(profile: URL) -> Bool { (lowMemoryResponseMask(profile: profile) ?? 0) != 0 }
 
+    /// Firefox's main process (not a content, GPU or crash-helper process).
+    public static func mainProcess(in snapshot: ProcessSnapshot) -> ProcessRecord? {
+        snapshot.records.first { $0.name == "firefox" && ($0.path?.hasSuffix(".app/Contents/MacOS/firefox") ?? false) }
+    }
+
+    /// The pref is in user.js but the running Firefox started before it was written. Firefox reads
+    /// user.js only at launch, so the unloader is not active until Firefox restarts.
+    public static func unloaderNeedsRestart(profile: URL, snapshot: ProcessSnapshot) -> Bool {
+        guard isUnloaderOn(profile: profile), let main = mainProcess(in: snapshot),
+              let written = (try? FileManager.default.attributesOfItem(atPath: profile.appendingPathComponent("user.js").path))?[.modificationDate] as? Date
+        else { return false }
+        return Date(timeIntervalSince1970: Double(main.startTime) / 1_000_000) < written
+    }
+
     /// Appends our line to user.js (replacing an earlier one of ours). Takes effect at the next Firefox start.
     public static func enableUnloader(profile: URL) throws {
         let url = profile.appendingPathComponent("user.js")

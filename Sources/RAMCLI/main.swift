@@ -313,6 +313,9 @@ case "helper":
         do {
             let s = try await HelperBackend().status()
             print("Helper: installed, version \(s.version)\(s.busy ? ", downloading now" : ""), \(s.reliefsThisHour) downloads this hour")
+            if s.version != HelperConstants.version {
+                print(style.amber("This ram carries helper \(HelperConstants.version): update with  sudo \(CommandLine.arguments[0]) helper install"))
+            }
         } catch { fail("Helper: installed but not answering (\(error))", code: 4) }
     }
 
@@ -336,12 +339,14 @@ case "doctor":
     let snap = ProcessSampler.snapshot()
     cpu.add(snap)
     let doctorSessions = AgentClassifier.sessions(snap, cpuHistory: cpu)
+    let availabilityNow = await ReliefAvailability.detect()
     let diagnosis = Diagnosis.make(system: system, wall: wallModel.status(), snapshot: snap,
                                    sessions: doctorSessions,
                                    leftovers: AgentClassifier.leftovers(snap, cpuHistory: cpu),
-                                   reliefAvailable: await ReliefAvailability.detect().backend() != nil,
+                                   reliefAvailable: availabilityNow.backend() != nil,
                                    firefoxProfile: FirefoxLevers.defaultProfile(), cpu: cpu,
-                                   duplicates: AgentClassifier.duplicateServers(doctorSessions))
+                                   duplicates: AgentClassifier.duplicateServers(doctorSessions),
+                                   helperVersion: availabilityNow.helperVersion)
     let crisis = fast ? (reports: [JetsamReport](), unreadable: 0) : JetsamReports.load(days: days)
     let jetsam = JetsamReports.episodes(crisis.reports)
     if flags.contains("--json") {
@@ -385,7 +390,8 @@ case "firefox":
         let gpu = FirefoxLevers.gpuProcess(in: snap)
         let profile = FirefoxLevers.defaultProfile()
         print("Firefox GPU process: \(gpu.map { Format.bytes($0.footprint) } ?? "not running")")
-        print("Low-memory tab unloading: \(profile.map { FirefoxLevers.isUnloaderOn(profile: $0) ? "on" : "off" } ?? "no profile")")
+        let pending = profile.map { FirefoxLevers.unloaderNeedsRestart(profile: $0, snapshot: snap) } ?? false
+        print("Low-memory tab unloading: \(profile.map { FirefoxLevers.isUnloaderOn(profile: $0) ? (pending ? "on after you restart Firefox (it started before the setting was written)" : "on") : "off" } ?? "no profile")")
         print(style.dim("ram firefox unloader on|off · ram firefox gpu-restart"))
     }
 

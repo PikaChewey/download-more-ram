@@ -149,6 +149,18 @@ public enum ReliefAvailability: Sendable, Equatable {
         }
     }
 
+    /// The installed helper is an older (or newer) build than the one this copy carries: downloads
+    /// still work, but the user should reinstall it to get the current safety rules.
+    public var helperOutdated: Bool {
+        if case .helper(let version) = self { return version != HelperConstants.version }
+        return false
+    }
+
+    public var helperVersion: String? {
+        if case .helper(let version) = self { return version }
+        return nil
+    }
+
     public func backend() -> (any ReliefBackend)? {
         switch self {
         case .root: DirectSysctlBackend()

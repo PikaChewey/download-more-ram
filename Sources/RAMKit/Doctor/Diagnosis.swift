@@ -22,6 +22,8 @@ public struct Diagnosis: Codable, Sendable {
     public var firefoxBytes: UInt64?
     public var firefoxGPUBytes: UInt64?
     public var firefoxUnloaderOn: Bool?
+    /// The pref is written but this Firefox started before it: on after one Firefox restart.
+    public var firefoxUnloaderNeedsRestart: Bool = false
     public var reliefAvailable: Bool
     /// Apps whose main process macOS paused while their helper processes keep burning CPU
     /// (observed 2026-10-20: ChatGPT's Codex helpers at ~4 cores for hours, on battery).
@@ -46,7 +48,7 @@ public struct Diagnosis: Codable, Sendable {
 
     public static func make(system: SystemSample, wall: WallStatus?, snapshot: ProcessSnapshot, sessions: [AgentSession],
                             leftovers: [Leftover], reliefAvailable: Bool, firefoxProfile: URL?, cpu: CPUHistory? = nil,
-                            duplicates: [DuplicateServer] = [], now: Date = Date()) -> Diagnosis {
+                            duplicates: [DuplicateServer] = [], helperVersion: String? = nil, now: Date = Date()) -> Diagnosis {
         let groups = AppGrouper.group(snapshot)
         var spinning: [SpinningApp] = []
         if let cpu {
@@ -66,6 +68,7 @@ public struct Diagnosis: Codable, Sendable {
         let firefox = groups.first { $0.bundlePath?.hasSuffix("/Firefox.app") ?? false }
         let gpu = FirefoxLevers.gpuProcess(in: snapshot)
         let unloader = firefox != nil ? firefoxProfile.map(FirefoxLevers.isUnloaderOn) : nil
+        let unloaderNeedsRestart = firefox != nil && firefoxProfile.map { FirefoxLevers.unloaderNeedsRestart(profile: $0, snapshot: snapshot) } == true
 
         var fixes: [Fix] = []
         if !insights.stillPausedApps.isEmpty {
@@ -105,6 +108,14 @@ public struct Diagnosis: Codable, Sendable {
             fixes.append(Fix(title: "Quit \(leftovers.count) leftover process\(leftovers.count == 1 ? "" : "es") agents forgot",
                              estimateBytes: bytes, how: "ram agents, then ram quit <pid>"))
         }
+        if unloaderNeedsRestart {
+            fixes.append(Fix(title: "Restart Firefox once to turn on its low-memory tab unloader (this Firefox started before the setting was written)",
+                             estimateBytes: nil, how: "quit and reopen Firefox (it reopens your tabs if \"Open previous windows and tabs\" is on)"))
+        }
+        if let helperVersion, helperVersion != HelperConstants.version {
+            fixes.append(Fix(title: "Update the root helper (installed \(helperVersion), this build \(HelperConstants.version))",
+                             estimateBytes: nil, how: "sudo ram helper install, or Update helper in the app"))
+        }
         if unloader == false {
             fixes.append(Fix(title: "Let Firefox unload idle tabs when memory is critical (off in release builds)",
                              estimateBytes: nil, how: "ram firefox unloader on (applies at the next Firefox start)"))
@@ -127,7 +138,7 @@ public struct Diagnosis: Codable, Sendable {
             quietAgentCount: quiet.count, quietAgentBytes: quiet.reduce(0) { $0 + $1.footprint },
             archivedAgentCount: archived.count, archivedAgentBytes: archived.reduce(0) { $0 + $1.footprint },
             leftovers: leftovers, firefoxBytes: firefox?.footprint, firefoxGPUBytes: gpu?.footprint,
-            firefoxUnloaderOn: unloader, reliefAvailable: reliefAvailable, spinningWhilePaused: spinning,
-            duplicates: duplicates, fixes: fixes)
+            firefoxUnloaderOn: unloader, firefoxUnloaderNeedsRestart: unloaderNeedsRestart, reliefAvailable: reliefAvailable,
+            spinningWhilePaused: spinning, duplicates: duplicates, fixes: fixes)
     }
 }

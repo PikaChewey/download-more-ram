@@ -213,7 +213,9 @@ public enum Render {
         if let ff = d.firefoxBytes {
             out += "  Firefox \(Format.bytes(ff))"
             if let g = d.firefoxGPUBytes { out += " (GPU process \(Format.bytes(g)))" }
-            if let on = d.firefoxUnloaderOn { out += " · low-memory tab unloading \(on ? "on" : "off")" }
+            if let on = d.firefoxUnloaderOn {
+                out += " · low-memory tab unloading " + (d.firefoxUnloaderNeedsRestart ? style.amber("on after a Firefox restart") : (on ? "on" : "off"))
+            }
             out += "\n"
         }
         out += "\n" + style.bold("Fixes, biggest first") + "\n"

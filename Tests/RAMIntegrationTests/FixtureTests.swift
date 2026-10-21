@@ -31,6 +31,13 @@ enum Env {
     /// caches), so it runs only when asked: RAM_LIVE_TESTS=1 swift test (scripts/acceptance.sh sets it).
     static var liveTestsAllowed: Bool { ProcessInfo.processInfo.environment["RAM_LIVE_TESTS"] == "1" }
 
+    /// The CLI's environment for live tests: receipts go to a scratch folder, never into the person's own.
+    static var cliEnvironment: [String: String] {
+        var env = ProcessInfo.processInfo.environment
+        env["RAM_RECEIPTS_DIR"] = FileManager.default.temporaryDirectory.appendingPathComponent("ram-test-receipts").path
+        return env
+    }
+
     static var memoryOK: Bool { (Sysctl.int("kern.memorystatus_level") ?? 0) >= 20 && Sysctl.int("kern.memorystatus_vm_pressure_level") != 4 }
     static var fixturesReady: Bool { binary("ram-fixture") != nil && memoryOK }
     /// The helper suite allocates only 512 MiB in total, so it may run down to 15% available.
@@ -146,6 +153,7 @@ struct ReliefEndToEndTests {
         let cli = Process()
         cli.executableURL = URL(fileURLWithPath: Env.signedCLI!)
         cli.arguments = ["download", "--hold", "3", "--json"]
+        cli.environment = Env.cliEnvironment
         let out = Pipe()
         cli.standardOutput = out
         try cli.run()
@@ -172,6 +180,7 @@ struct ReliefEndToEndTests {
         let cli = Process()
         cli.executableURL = URL(fileURLWithPath: Env.signedCLI!)
         cli.arguments = ["download", "--hold", "6", "--json"]
+        cli.environment = Env.cliEnvironment
         cli.standardOutput = FileHandle.nullDevice
         cli.standardError = FileHandle.nullDevice
         try cli.run()

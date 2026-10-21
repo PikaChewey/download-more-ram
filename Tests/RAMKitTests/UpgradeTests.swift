@@ -46,4 +46,14 @@ struct UpgradeTests {
         try FirefoxLevers.disableUnloader(profile: profile)
         #expect(!FirefoxLevers.unloaderNeedsRestart(profile: profile, snapshot: snapshot(startedAt: written.addingTimeInterval(-86_400))))
     }
+
+    @Test func receiptsDirectoryCanBeRedirected() {
+        // The live suite sets RAM_RECEIPTS_DIR for the CLI it runs; without it receipts live in Application Support.
+        if ProcessInfo.processInfo.environment["RAM_RECEIPTS_DIR"] == nil {
+            #expect(Receipt.defaultDirectory.path.hasSuffix("Library/Application Support/DownloadMoreRAM/receipts"))
+        }
+        setenv("RAM_RECEIPTS_DIR", "/tmp/ram-receipts-test", 1)
+        defer { unsetenv("RAM_RECEIPTS_DIR") }
+        #expect(Receipt.defaultDirectory.path == "/tmp/ram-receipts-test")
+    }
 }

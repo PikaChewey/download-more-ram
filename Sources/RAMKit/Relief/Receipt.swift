@@ -92,8 +92,12 @@ public struct Receipt: Codable, Sendable, Identifiable {
         return out
     }
 
+    /// `RAM_RECEIPTS_DIR` overrides it, so test runs never mix their receipts into a person's own.
     public static var defaultDirectory: URL {
-        RealUser.home.appendingPathComponent("Library/Application Support/DownloadMoreRAM/receipts", isDirectory: true)
+        if let dir = ProcessInfo.processInfo.environment["RAM_RECEIPTS_DIR"], !dir.isEmpty {
+            return URL(fileURLWithPath: dir, isDirectory: true)
+        }
+        return RealUser.home.appendingPathComponent("Library/Application Support/DownloadMoreRAM/receipts", isDirectory: true)
     }
 
     /// Writes `<id>.json` and `<id>.md`; returns the JSON URL.
